@@ -1,11 +1,7 @@
 import { t } from 'elysia';
 
 export { projectKeyParams } from '../issues/model';
-export { rawAttachmentQuery } from '../attachments/model';
-
-// The public id is a UUID column. Validating its format here turns a malformed id
-// into a 400 instead of letting it reach Postgres and surface as a 500.
-export const publicIdParams = t.Object({ publicId: t.String({ format: 'uuid' }) });
+export { publicIdParams, rawAttachmentQuery } from '../attachments/model';
 
 // The upload carries its bytes as base64 rather than multipart, so the one route
 // serves the chat composer and MCP callers alike (a tool call is a JSON body).

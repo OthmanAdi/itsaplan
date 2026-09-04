@@ -181,9 +181,10 @@ describe('share', () => {
     // reach the server-side engine without the values every value operator reads.
     it('serves a view whose filter condition carries no values', async () => {
       const { asOwner, viewId, token, issueId } = await sharedView();
-      await asOwner
+      const patched = await asOwner
         .views({ viewId })
         .patch({ filters: { conditions: [{ field: 'status', op: 'is' }] } });
+      expect(patched.status).toBe(200);
 
       const shared = await api.share.view({ token }).get();
       expect(shared.status).toBe(200);
