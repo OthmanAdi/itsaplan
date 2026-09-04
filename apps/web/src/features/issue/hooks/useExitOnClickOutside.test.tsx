@@ -164,6 +164,16 @@ describe('useExitOnClickOutside', () => {
     assert.equal(exits, 1);
   });
 
+  // A keyboard activation and a synthetic click raise no press, so the press a
+  // previous gesture recorded must not decide them.
+  it('exits on a click that follows no press of its own', () => {
+    render();
+    dispatch(element('inside'), 'pointerdown');
+    dispatch(element('page'), 'click');
+    dispatch(element('page'), 'click');
+    assert.equal(exits, 1);
+  });
+
   it('removes its document listeners when the surface unmounts', () => {
     render();
     assert.equal(documentListeners, 2);
