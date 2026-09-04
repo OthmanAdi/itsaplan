@@ -6,24 +6,44 @@ import { useEffect, useRef, type RefObject } from 'react';
 //
 // The layer check keeps the surface open under its own overlays. A popover, dropdown,
 // select, dialog or toast is its own child of the body, so none of them have to be named
-// here.
+// here. That holds while the app renders into one child of the body: an element wrapping
+// the providers would put those overlays in the surface's own layer and a click in one
+// would close it.
 //
 // Click, not pointerdown: a field that saves on blur commits before the surface closes,
-// and a scrollbar drag or a right-click raises no click at all. The handler is kept in a
-// ref so the listener is registered once and always calls the latest onExit.
+// and a scrollbar drag or a right-click raises no click at all.
+//
+// A click reports the common ancestor of press and release, so selecting text in the
+// surface and releasing over the page reports an element outside it. The press decides:
+// a gesture that started inside the surface never exits, which is what keeps a selection
+// dragged out of it from closing it. The handler is kept in a ref so the listeners are
+// registered once and always call the latest onExit.
 export function useExitOnClickOutside(ref: RefObject<HTMLElement | null>, onExit: () => void) {
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
 
   useEffect(() => {
+    let pressedInside = false;
+
+    function onPointerDown(e: PointerEvent) {
+      const surface = ref.current;
+      pressedInside = !!surface && e.target instanceof Node && surface.contains(e.target);
+    }
+
     function onClick(e: MouseEvent) {
       const surface = ref.current;
+      if (pressedInside) return;
       if (!surface || !(e.target instanceof Element)) return;
       if (surface.contains(e.target)) return;
       if (!surface.closest('body > *')?.contains(e.target)) return;
       onExitRef.current();
     }
+
+    document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('click', onClick);
+    };
   }, [ref]);
 }

@@ -9,6 +9,7 @@ const replacedGlobals = [
   'window',
   'document',
   'navigator',
+  'Node',
   'Element',
   'HTMLElement',
   'Event',
@@ -25,7 +26,7 @@ const markup =
 let dom: JSDOM;
 let root: Root;
 let exits: number;
-let documentClickListeners: number;
+let documentListeners: number;
 let originalGlobalDescriptors: Map<string, PropertyDescriptor | undefined>;
 
 function Surface() {
@@ -72,20 +73,21 @@ beforeEach(async () => {
   );
   dom = new JSDOM(markup, { url: 'https://example.test/project/KEY' });
   exits = 0;
-  documentClickListeners = 0;
+  documentListeners = 0;
 
-  // Counts the hook's own registration so the unmount case fails without the cleanup.
+  // Counts the hook's own registrations so the unmount case fails without the cleanup.
   const { document: doc } = dom.window;
   const add = doc.addEventListener.bind(doc);
   const remove = doc.removeEventListener.bind(doc);
+  const counted = (type: string) => type === 'click' || type === 'pointerdown';
   type Listener = Parameters<typeof add>[1];
   type Options = Parameters<typeof add>[2];
   doc.addEventListener = (type: string, listener: Listener, options?: Options) => {
-    if (type === 'click') documentClickListeners += 1;
+    if (counted(type)) documentListeners += 1;
     add(type, listener, options);
   };
   doc.removeEventListener = (type: string, listener: Listener, options?: Options) => {
-    if (type === 'click') documentClickListeners -= 1;
+    if (counted(type)) documentListeners -= 1;
     remove(type, listener, options);
   };
 
@@ -93,6 +95,7 @@ beforeEach(async () => {
     window: { configurable: true, value: dom.window },
     document: { configurable: true, value: doc },
     navigator: { configurable: true, value: dom.window.navigator },
+    Node: { configurable: true, value: dom.window.Node },
     Element: { configurable: true, value: dom.window.Element },
     HTMLElement: { configurable: true, value: dom.window.HTMLElement },
     Event: { configurable: true, value: dom.window.Event },
@@ -143,10 +146,28 @@ describe('useExitOnClickOutside', () => {
     assert.equal(exits, 0);
   });
 
-  it('removes its document listener when the surface unmounts', () => {
+  // A click reports the common ancestor of press and release, so selecting text in the
+  // surface and releasing over the page reports an element outside it.
+  it('stays when the gesture started inside the surface', () => {
     render();
-    assert.equal(documentClickListeners, 1);
+    dispatch(element('inside'), 'pointerdown');
+    dispatch(element('page'), 'click');
+    assert.equal(exits, 0);
+  });
+
+  it('exits again on the next gesture that starts outside', () => {
+    render();
+    dispatch(element('inside'), 'pointerdown');
+    dispatch(element('page'), 'click');
+    dispatch(element('page'), 'pointerdown');
+    dispatch(element('page'), 'click');
+    assert.equal(exits, 1);
+  });
+
+  it('removes its document listeners when the surface unmounts', () => {
+    render();
+    assert.equal(documentListeners, 2);
     act(() => root.render(null));
-    assert.equal(documentClickListeners, 0);
+    assert.equal(documentListeners, 0);
   });
 });
