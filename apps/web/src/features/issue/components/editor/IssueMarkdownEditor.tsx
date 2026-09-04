@@ -71,11 +71,12 @@ export default function IssueMarkdownEditor({
   const mentionCandidatesRef = useRef(mentionCandidates);
   mentionCandidatesRef.current = mentionCandidates;
   // Whether the document has changed since this editor was mounted. The markdown
-  // round trip is not an identity: linkify parses a bare URL into a link node, which
-  // serialises back as an autolink in angle brackets. A blur reporting every time
-  // would hand its caller markdown that differs from the stored text after a focus
-  // that changed nothing. Set by onUpdate, cleared by the remount a save causes, so
-  // a failed save still reports on the next blur.
+  // round trip is not an identity: the link extension's autolink parses a bare URL
+  // into a link node, which serialises back in angle brackets. A blur reporting every
+  // time would hand its caller markdown that differs from the stored text after a
+  // focus that changed nothing. Set by onUpdate; a caller keyed on the value it stores
+  // (IssueDetailContent, IssueCustomFieldBody) remounts on a save and starts a fresh
+  // one, so a save that fails still reports on the next blur.
   const changedRef = useRef(false);
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
 
