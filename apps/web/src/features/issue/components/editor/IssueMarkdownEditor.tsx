@@ -70,6 +70,13 @@ export default function IssueMarkdownEditor({
   const mentionCandidates = useMentionCandidates();
   const mentionCandidatesRef = useRef(mentionCandidates);
   mentionCandidatesRef.current = mentionCandidates;
+  // Whether the document has changed since this editor was mounted. The markdown
+  // round trip is not an identity: linkify parses a bare URL into a link node, which
+  // serialises back as an autolink in angle brackets. A blur reporting every time
+  // would hand its caller markdown that differs from the stored text after a focus
+  // that changed nothing. Set by onUpdate, cleared by the remount a save causes, so
+  // a failed save still reports on the next blur.
+  const changedRef = useRef(false);
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
 
   // Upload each file and insert it (image/video inline, other files as a link)
@@ -154,8 +161,13 @@ export default function IssueMarkdownEditor({
         return true;
       },
     },
-    onUpdate: ({ editor }) => onChange?.(editor.storage.markdown.getMarkdown()),
-    onBlur: ({ editor }) => onBlur?.(editor.storage.markdown.getMarkdown()),
+    onUpdate: ({ editor }) => {
+      changedRef.current = true;
+      onChange?.(editor.storage.markdown.getMarkdown());
+    },
+    onBlur: ({ editor }) => {
+      if (changedRef.current) onBlur?.(editor.storage.markdown.getMarkdown());
+    },
   });
 
   useEffect(() => {
