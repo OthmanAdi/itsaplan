@@ -32,7 +32,10 @@ export function useExitOnClickOutside(ref: RefObject<HTMLElement | null>, onExit
 
     function onClick(e: MouseEvent) {
       const surface = ref.current;
-      if (pressedInside) return;
+      // A click already handled by what it landed on is left alone, the same way
+      // useExitOnEscape leaves a handled key, so opening another issue from the page
+      // behind replaces what the panel shows rather than closing it.
+      if (pressedInside || e.defaultPrevented) return;
       if (!surface || !(e.target instanceof Element)) return;
       if (surface.contains(e.target)) return;
       if (!surface.closest('body > *')?.contains(e.target)) return;
