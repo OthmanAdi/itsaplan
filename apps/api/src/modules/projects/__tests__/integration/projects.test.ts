@@ -809,6 +809,16 @@ describe('projects', () => {
       expect(res.status).toBe(400);
     });
 
+    // The worker subtracts this from now() for every project in one statement, so a
+    // day count no interval can carry fails that statement for the whole instance.
+    it('rejects a day count no interval can carry', async () => {
+      const { api } = await signUpClient();
+      await api.projects.post({ key: 'MKT', name: 'Marketing' });
+
+      const res = await autoArchive(api).patch({ completedDays: 3_000_000, canceledDays: 7 });
+      expect(res.status).toBe(400);
+    });
+
     it('holds the default member role out of the section', async () => {
       const owner = await signUpClient();
       await owner.api.projects.post({ key: 'MKT', name: 'Marketing' });
