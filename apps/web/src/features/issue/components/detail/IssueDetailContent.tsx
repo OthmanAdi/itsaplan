@@ -75,6 +75,7 @@ export default function IssueDetailContent({
   } = useIssueDetail(project, issueId, onIssueLoaded);
   const permissions = usePermissions(project);
   const canEdit = permissions.can('work_items', 'edit');
+  const canManageDevelopment = permissions.can('integrations', 'edit');
   const canReadDocuments = permissions.can('documents', 'read');
   const canLinkDocuments = canEdit && permissions.can('documents', 'edit');
   const features = useProjectFeatures();
@@ -187,7 +188,14 @@ export default function IssueDetailContent({
 
       {features.timeLogging && <IssueWorklogPanel project={project} issue={issue} />}
 
-      <IssueDevelopmentPanel issueId={issue.id} links={issue.development ?? []} canEdit={canEdit} />
+      <IssueDevelopmentPanel
+        issueId={issue.id}
+        identifier={issue.identifier}
+        issueTitle={issue.title}
+        links={issue.development ?? []}
+        canEdit={canEdit}
+        canManage={canManageDevelopment}
+      />
 
       {features.documents && (
         <IssueDocumentsPanel
