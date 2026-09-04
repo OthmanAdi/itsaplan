@@ -328,6 +328,30 @@ describe('projects', () => {
       });
     });
 
+    it('takes mcpEnabled from the instance default, not from the source project', async () => {
+      const { api } = await signUpClient();
+      await api.projects.post({ key: 'SRC', name: 'Source' });
+      await api.projects({ projectKey: 'SRC' }).settings.patch({ mcpEnabled: false });
+
+      await api.projects({ projectKey: 'SRC' }).copy.post({ key: 'DST', name: 'Destination' });
+
+      const settings = await api.projects({ projectKey: 'DST' }).settings.get();
+      expect(settings.data?.mcpEnabled).toBe(true);
+    });
+
+    // The other direction, so the copy is shown to read the default rather than to
+    // carry a fixed value. The first account of a fresh database holds the god role.
+    it('copies a project with MCP off once the instance default is turned off', async () => {
+      const { api } = await signUpClient();
+      await api.projects.post({ key: 'SRC', name: 'Source' });
+      await api.god['project-defaults'].put({ mcpEnabled: false });
+
+      await api.projects({ projectKey: 'SRC' }).copy.post({ key: 'DST', name: 'Destination' });
+
+      const settings = await api.projects({ projectKey: 'DST' }).settings.get();
+      expect(settings.data?.mcpEnabled).toBe(false);
+    });
+
     it('copies the estimate kinds and time logging the source project carries', async () => {
       const { api } = await signUpClient();
       await api.projects.post({ key: 'SRC', name: 'Source' });
