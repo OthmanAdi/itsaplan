@@ -328,6 +328,17 @@ describe('projects', () => {
       });
     });
 
+    it('takes mcpEnabled from the instance default, not from the source project', async () => {
+      const { api } = await signUpClient();
+      await api.projects.post({ key: 'SRC', name: 'Source' });
+      await api.projects({ projectKey: 'SRC' }).settings.patch({ mcpEnabled: false });
+
+      await api.projects({ projectKey: 'SRC' }).copy.post({ key: 'DST', name: 'Destination' });
+
+      const settings = await api.projects({ projectKey: 'DST' }).settings.get();
+      expect(settings.data?.mcpEnabled).toBe(true);
+    });
+
     it('copies the estimate kinds and time logging the source project carries', async () => {
       const { api } = await signUpClient();
       await api.projects.post({ key: 'SRC', name: 'Source' });
