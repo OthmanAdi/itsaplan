@@ -35,7 +35,7 @@ export const createProjectBody = t.Composite([
 
 // Copy adds an optional selection of which parts of the source project to carry over.
 // Omitted → the source project's structure (states, types, labels, custom fields,
-// views, dashboards, actions). Each flag maps to a section of the project settings
+// views, dashboards, documents, actions). Each flag maps to a project section
 // menu; the service force-enables dependencies.
 export const copyProjectBody = t.Composite([
   projectBody,
@@ -68,6 +68,7 @@ export const ProjectResponse = t.Object({
   // disabled section is hidden in the web app and its rows are kept.
   initiativesEnabled: t.Boolean(),
   dashboardsEnabled: t.Boolean(),
+  documentsEnabled: t.Boolean(),
   notesEnabled: t.Boolean(),
   cyclesEnabled: t.Boolean(),
   subtasksEnabled: t.Boolean(),
@@ -103,6 +104,7 @@ const AssigneeCandidateResponse = t.Object({
   kind: t.Union([t.Literal('member'), t.Literal('agent')]),
   agentKind: t.Nullable(t.Union([t.Literal('external'), t.Literal('internal')])),
   restrictedToUserId: t.Nullable(t.String()),
+  canReadWorkItems: t.Boolean(),
 });
 
 // The caller's own role in a project (from MemberContext in members/service). The
@@ -133,6 +135,7 @@ export const ProjectBoardResponse = t.Object({
 const FeaturesResponse = t.Object({
   initiatives: t.Boolean(),
   dashboards: t.Boolean(),
+  documents: t.Boolean(),
   notes: t.Boolean(),
   cycles: t.Boolean(),
   subtasks: t.Boolean(),

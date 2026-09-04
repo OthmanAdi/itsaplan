@@ -345,6 +345,14 @@
       "skipped": "已跳过"
     }
   },
+  "documents": {
+    "title": "Docs",
+    "add": "关联 Docs 页面",
+    "empty": "暂无关联的 Docs 页面。",
+    "loadFailed": "无法加载关联页面。点击重试。",
+    "remove": "取消关联 {title}",
+    "untitled": "无标题"
+  },
   "archived": "已归档",
   "activityHeading": "活动记录",
   "feedFlat": "平铺",
@@ -376,7 +384,14 @@
   },
   "watchers": {
     "watch": "关注",
-    "unwatch": "取消关注"
+    "unwatch": "取消关注",
+    "manage": "管理关注者",
+    "search": "搜索项目成员…",
+    "empty": "未找到成员。",
+    "you": "{name}（你）",
+    "add": "将 {name} 添加为关注者",
+    "remove": "从关注者中移除 {name}",
+    "watchingCount": "{count} 位关注者"
   },
   "effects": {
     "cleared": "已清除",
