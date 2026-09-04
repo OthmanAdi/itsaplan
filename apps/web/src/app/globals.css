@@ -607,13 +607,20 @@
 [dir='rtl'] .sticker-note {
   direction: rtl;
 }
-/* Sticky notes always sit on a light pastel background, so their placeholder and
-   checkboxes are keyed to dark regardless of the app theme. */
+/* Sticky notes always sit on a light pastel background, so their placeholder,
+   checkboxes, links and mentions are keyed to dark regardless of the app theme.
+   Links and mentions take the note's own text colour, which the card sets: the
+   --primary they use elsewhere turns near-white in dark mode and leaves them
+   unreadable on the pastel. The underline still marks a link. */
 .sticker-note .md-content p.is-editor-empty:first-child::before {
   color: rgba(0, 0, 0, 0.4);
 }
 .sticker-note .md-content ul[data-type='taskList'] input[type='checkbox'] {
   accent-color: #000;
+}
+.sticker-note .md-content a,
+.sticker-note .md-content .mention {
+  color: inherit;
 }
 /* React Flow's default edge stroke is too dark on the canvas in both themes. */
 .react-flow__edge-path,
