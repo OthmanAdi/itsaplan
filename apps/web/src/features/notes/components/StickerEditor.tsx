@@ -6,6 +6,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { Markdown } from 'tiptap-markdown';
 import { useTranslations } from 'next-intl';
+import EditorLinkPreview from '@/components/common/editor/EditorLinkPreview';
 
 // The markdown body of a sticky note. Unlike the issue editor there is no bubble
 // menu — a persistent toolbar (StickerToolbar) drives the commands — and task
@@ -42,5 +43,10 @@ export default function StickerEditor({
   }, [editor, onReady]);
 
   if (!editor) return null;
-  return <EditorContent editor={editor} />;
+  return (
+    <>
+      <EditorContent editor={editor} />
+      <EditorLinkPreview editor={editor} />
+    </>
+  );
 }

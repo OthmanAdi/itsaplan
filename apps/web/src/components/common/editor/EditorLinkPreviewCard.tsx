@@ -1,7 +1,25 @@
-import { ArrowUpRight, Globe, LoaderCircle } from 'lucide-react';
+import {
+  ArrowUpRight,
+  CircleDot,
+  FileText,
+  FolderKanban,
+  Globe,
+  LayoutList,
+  LoaderCircle,
+  StickyNote,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { LinkPreview } from '@/lib/api/endpoints/link-previews';
+import type { ResolvedLinkPreview } from './resolveLinkPreview';
 import EditorLinkPreviewImage from './EditorLinkPreviewImage';
+import EditorLinkPreviewDetails from './EditorLinkPreviewDetails';
+
+const previewIcons = {
+  project: FolderKanban,
+  issue: CircleDot,
+  document: FileText,
+  notes: StickyNote,
+  view: LayoutList,
+};
 
 export default function EditorLinkPreviewCard({
   url,
@@ -9,11 +27,14 @@ export default function EditorLinkPreviewCard({
   loading,
 }: {
   url: string;
-  preview: LinkPreview | undefined;
+  preview: ResolvedLinkPreview | undefined;
   loading: boolean;
 }) {
   const t = useTranslations('common.editor');
   const host = new URL(url).hostname.replace(/^www\./, '');
+  const internal = typeof window !== 'undefined' && new URL(url).origin === window.location.origin;
+  const Icon = preview?.kind ? previewIcons[preview.kind] : Globe;
+  const fallbackTitle = internal ? t('internalPage') : host;
   return (
     <a
       href={url}
@@ -21,14 +42,14 @@ export default function EditorLinkPreviewCard({
       rel="noopener noreferrer"
       referrerPolicy="no-referrer"
       className="block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={t('openPreviewLink', { name: preview?.title || host })}
+      aria-label={t('openPreviewLink', { name: preview?.title || fallbackTitle })}
     >
       {preview?.image && <EditorLinkPreviewImage key={preview.image} src={preview.image} />}
       <div className="space-y-2 p-3 text-start">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Globe className="size-3.5 shrink-0" aria-hidden="true" />
+          <Icon className="size-3.5 shrink-0" aria-hidden="true" />
           <span className="min-w-0 truncate" dir="auto">
-            {preview?.siteName || host}
+            {preview?.siteName || fallbackTitle}
           </span>
           <ArrowUpRight className="ms-auto size-3.5 shrink-0" aria-hidden="true" />
         </div>
@@ -47,11 +68,19 @@ export default function EditorLinkPreviewCard({
         ) : (
           <>
             <p className="line-clamp-2 text-sm font-medium text-pretty" dir="auto">
-              {preview?.title || host}
+              {preview?.title || fallbackTitle}
             </p>
-            <p className="line-clamp-3 text-xs text-pretty text-muted-foreground" dir="auto">
-              {preview?.description || t('previewUnavailable')}
-            </p>
+            {preview?.description && (
+              <p className="line-clamp-3 text-xs text-pretty text-muted-foreground" dir="auto">
+                {preview.description}
+              </p>
+            )}
+            {!preview?.title && !preview?.description && (
+              <p className="text-xs text-pretty text-muted-foreground">
+                {internal ? t('internalPreviewUnavailable') : t('previewUnavailable')}
+              </p>
+            )}
+            {preview?.kind && <EditorLinkPreviewDetails preview={preview} />}
           </>
         )}
         <p className="truncate pt-1 text-xs text-muted-foreground" dir="ltr" title={url}>

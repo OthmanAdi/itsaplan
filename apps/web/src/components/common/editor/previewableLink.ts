@@ -5,7 +5,6 @@ export function previewableLink(target: EventTarget | null, root: HTMLElement) {
   try {
     const url = new URL(link.href);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
-    if (url.origin === window.location.origin) return null;
     return link;
   } catch {
     return null;

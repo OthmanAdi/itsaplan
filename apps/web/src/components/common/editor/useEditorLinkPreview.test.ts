@@ -102,9 +102,11 @@ describe('editor link preview interaction', () => {
     assert.equal(state.open, true);
   });
 
-  it('does not preview local, unsafe, credential-bearing or download links', () => {
+  it('accepts relative internal links and rejects unsafe, credential-bearing or download links', () => {
+    editorRoot.innerHTML = '<a href="/project/EX">Project</a>';
+    const internal = editorRoot.querySelector('a');
+    assert.equal(previewableLink(internal, editorRoot), internal);
     for (const href of [
-      '/project/EX',
       'javascript:alert(1)',
       'mailto:test@example.com',
       'https://user:secret@example.com',
