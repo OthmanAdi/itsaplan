@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
@@ -14,7 +14,8 @@ import { SlashCommand } from '@/lib/tiptap-slash-command';
 import { MarkdownTable } from './tiptap-table';
 import { Video } from './tiptap-video';
 import { attachmentHtml, type Embeddable } from './attachmentEmbed';
-import { openLinkOnEnter, openLinkOnModifierClick } from './modifierClickLink';
+import { openLinkOnModifierClick } from './modifierClickLink';
+import { createLinkKeyboardHandlers } from './linkKeyboardHandlers';
 import EditorImagePicker from './EditorImagePicker';
 import EditorSelectionMenu from './EditorSelectionMenu';
 import EditorTableMenu from './EditorTableMenu';
@@ -66,6 +67,7 @@ export default function MarkdownEditor({
 }) {
   const t = useTranslations('common.editor');
   const editorRef = useRef<Editor | null>(null);
+  const linkKeyboardHandlers = useMemo(createLinkKeyboardHandlers, []);
   // Held in a ref because the extensions are built once: the "@" menu reads the
   // roster through it, so a list that arrives later is still offered.
   const mentionCandidates = useMentionCandidates();
@@ -143,9 +145,7 @@ export default function MarkdownEditor({
       handleClick(view, _pos, event) {
         return openLinkOnModifierClick(event, view.dom);
       },
-      handleKeyDown(view, event) {
-        return openLinkOnEnter(event, view.dom);
-      },
+      handleDOMEvents: linkKeyboardHandlers,
       // Files dropped from the OS are uploaded, then inserted at the drop
       // position. Internal moves and attachment-card drags (which carry
       // text/html, not files) fall through to tiptap's default handling.

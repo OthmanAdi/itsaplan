@@ -5,14 +5,22 @@ export function openLinkOnModifierClick(event: MouseEvent, root: HTMLElement): b
   return openLink(event, root);
 }
 
-export function openLinkOnEnter(event: KeyboardEvent, root: HTMLElement): boolean {
+export function openLinkOnEnter(
+  event: KeyboardEvent,
+  root: HTMLElement,
+  focusedLink: HTMLAnchorElement | null = null,
+): boolean {
   if (event.key !== 'Enter' || event.target !== document.activeElement) return false;
+  if (event.target === root && focusedLink) return openLink(event, root, focusedLink);
   if (!(event.target instanceof Element) || event.target.tagName !== 'A') return false;
   return openLink(event, root);
 }
 
-function openLink(event: MouseEvent | KeyboardEvent, root: HTMLElement): boolean {
-  const target = event.target as Element | null;
+function openLink(
+  event: MouseEvent | KeyboardEvent,
+  root: HTMLElement,
+  target = event.target as Element | null,
+): boolean {
   if (!target || typeof target.closest !== 'function') return false;
   const link = target.closest<HTMLAnchorElement>('a[href]');
   if (!link || !root.contains(link)) return false;
