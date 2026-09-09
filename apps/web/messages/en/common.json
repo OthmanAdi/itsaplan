@@ -177,7 +177,11 @@
     "insertImage": "Insert image",
     "insertNamed": "Insert {name}",
     "noImages": "No images attached yet. Upload one from the Attachments panel, or drop it straight onto the editor.",
-    "image": "Image"
+    "image": "Image",
+    "linkPreview": "Link preview",
+    "openPreviewLink": "Open {name} in a new tab",
+    "loadingPreview": "Loading preview…",
+    "previewUnavailable": "A preview is not available. Open the link to view this page."
   },
   "chart": {
     "download": "Save chart",

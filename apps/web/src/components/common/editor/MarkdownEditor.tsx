@@ -18,6 +18,7 @@ import { openLinkOnModifierClick } from './modifierClickLink';
 import EditorImagePicker from './EditorImagePicker';
 import EditorSelectionMenu from './EditorSelectionMenu';
 import EditorTableMenu from './EditorTableMenu';
+import EditorLinkPreview from './EditorLinkPreview';
 import { useMentionCandidates } from '@/hooks/useMentionCandidates';
 import { useTranslations } from 'next-intl';
 
@@ -101,7 +102,11 @@ export default function MarkdownEditor({
       StarterKit.configure(editorStarterKitOptions),
       CodeBlockLowlight.configure({ lowlight }),
       Placeholder.configure({ placeholder }),
-      Link.configure({ openOnClick: false, autolink: true }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        HTMLAttributes: { class: 'cursor-pointer', tabindex: '0' },
+      }),
       // Renders ![](url) markdown inline.
       ResizableImage,
       // Renders an @username in the text as a mention chip, and offers the project's
@@ -188,6 +193,7 @@ export default function MarkdownEditor({
       {/* Grows with the text rather than being pinned to the container's height,
           so a container that scrolls measures the overflow and shows a bar. */}
       <EditorContent editor={editor} className="flex min-h-full flex-col" />
+      <EditorLinkPreview editor={editor} />
       {imageAttachments && (
         <EditorImagePicker
           open={imagePickerOpen}
