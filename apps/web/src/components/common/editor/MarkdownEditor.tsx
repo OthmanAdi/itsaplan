@@ -14,7 +14,7 @@ import { SlashCommand } from '@/lib/tiptap-slash-command';
 import { MarkdownTable } from './tiptap-table';
 import { Video } from './tiptap-video';
 import { attachmentHtml, type Embeddable } from './attachmentEmbed';
-import { openLinkOnModifierClick } from './modifierClickLink';
+import { openLinkOnEnter, openLinkOnModifierClick } from './modifierClickLink';
 import EditorImagePicker from './EditorImagePicker';
 import EditorSelectionMenu from './EditorSelectionMenu';
 import EditorTableMenu from './EditorTableMenu';
@@ -142,6 +142,9 @@ export default function MarkdownEditor({
       },
       handleClick(view, _pos, event) {
         return openLinkOnModifierClick(event, view.dom);
+      },
+      handleKeyDown(view, event) {
+        return openLinkOnEnter(event, view.dom);
       },
       // Files dropped from the OS are uploaded, then inserted at the drop
       // position. Internal moves and attachment-card drags (which carry

@@ -57,8 +57,10 @@ export function useEditorLinkPreview(editor: Editor) {
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || !anchorRef.current) return;
-      event.preventDefault();
-      event.stopPropagation();
+      if (visibleRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       close();
     };
     root.addEventListener('pointerover', enter);

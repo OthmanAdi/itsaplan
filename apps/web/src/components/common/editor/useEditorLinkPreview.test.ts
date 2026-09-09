@@ -69,12 +69,19 @@ describe('editor link preview interaction', () => {
     await point(link, 'pointerover');
     await wait(670);
     assert.equal(state.open, true);
+    let parentEscapes = 0;
+    const parentEscape = () => {
+      parentEscapes += 1;
+    };
+    dom.window.addEventListener('keydown', parentEscape);
     await act(() => {
       dom.window.document.dispatchEvent(
         new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
       );
     });
     assert.equal(state.open, false);
+    assert.equal(parentEscapes, 0);
+    dom.window.removeEventListener('keydown', parentEscape);
     await wait(180);
     assert.equal(state.anchor, null);
   });

@@ -6,7 +6,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import { JSDOM } from 'jsdom';
 import { editorStarterKitOptions } from './MarkdownEditor';
-import { openLinkOnModifierClick } from './modifierClickLink';
+import { openLinkOnEnter, openLinkOnModifierClick } from './modifierClickLink';
 
 let dom: JSDOM;
 let originalGlobalDescriptors: Map<string, PropertyDescriptor | undefined>;
@@ -38,6 +38,35 @@ afterEach(() => {
 });
 
 describe('MarkdownEditor extensions', () => {
+  it('does not edit the document when Enter activates a focused link', () => {
+    const opened: unknown[] = [];
+    dom.window.open = (...args: Parameters<typeof window.open>) => {
+      opened.push(args);
+      return null;
+    };
+    const editor = new Editor({
+      element: dom.window.document.querySelector('div')!,
+      extensions: [
+        StarterKit.configure(editorStarterKitOptions),
+        Link.configure({ openOnClick: false, HTMLAttributes: { tabindex: '0' } }),
+      ],
+      content: '<p><a href="https://example.com/docs">Docs</a> content</p>',
+      editorProps: {
+        handleKeyDown(view, event) {
+          return openLinkOnEnter(event, view.dom);
+        },
+      },
+    });
+    const before = editor.getHTML();
+    const link = editor.view.dom.querySelector('a')!;
+    link.focus();
+    link.dispatchEvent(
+      new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+    );
+    assert.equal(editor.getHTML(), before);
+    assert.deepEqual(opened, [['https://example.com/docs', '_blank', 'noopener,noreferrer']]);
+    editor.destroy();
+  });
   it('registers the configured link extension once', () => {
     const editor = new Editor({
       extensions: [
