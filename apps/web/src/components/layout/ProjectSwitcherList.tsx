@@ -13,6 +13,7 @@ export default function ProjectSwitcherList({
   current,
   sort,
   showHidden,
+  onShowHiddenChange,
   openTeams,
   onOpenTeam,
   onSelectProject,
@@ -23,6 +24,7 @@ export default function ProjectSwitcherList({
   current?: Project;
   sort: ProjectSort;
   showHidden: boolean;
+  onShowHiddenChange: (show: boolean) => void;
   openTeams: Record<number, boolean>;
   onOpenTeam: (teamId: number, open: boolean) => void;
   onSelectProject: (key: string) => void;
@@ -39,6 +41,7 @@ export default function ProjectSwitcherList({
     locale,
   );
   const searching = query.trim().length > 0;
+  const hiddenCount = projects.filter((project) => project.isHidden).length;
 
   return (
     <Command
@@ -76,9 +79,12 @@ export default function ProjectSwitcherList({
             onSelectProject={onSelectProject}
           />
         ))}
-        {showHidden && (
+        {(hiddenCount > 0 || showHidden) && (
           <ProjectSwitcherHiddenProjects
             projects={hiddenProjects}
+            hiddenCount={hiddenCount}
+            expanded={showHidden}
+            onExpandedChange={onShowHiddenChange}
             currentProjectKey={current?.key ?? null}
             onSelectProject={onSelectProject}
           />

@@ -39,7 +39,6 @@ export default function ProjectSwitcherMenu({
   const resizeStart = useRef(preferences.width);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showHidden, setShowHidden] = useState(false);
-  const hiddenCount = projects.filter((project) => project.isHidden).length;
   const side = sidebarSide === 'left' ? 'right' : 'left';
 
   return (
@@ -70,18 +69,13 @@ export default function ProjectSwitcherMenu({
         current={current}
         sort={preferences.sort}
         showHidden={showHidden}
+        onShowHiddenChange={setShowHidden}
         openTeams={openTeams}
         onOpenTeam={onOpenTeam}
         onSelectProject={onSelectProject}
         inputRef={inputRef}
       />
-      <ProjectSwitcherFooter
-        onNewTeam={onNewTeam}
-        onClose={onClose}
-        hiddenCount={hiddenCount}
-        showHidden={showHidden}
-        onShowHiddenChange={setShowHidden}
-      />
+      <ProjectSwitcherFooter onNewTeam={onNewTeam} onClose={onClose} />
       {!isMobile && (
         <ResizeGrip
           label={t('projectPicker.resize')}
