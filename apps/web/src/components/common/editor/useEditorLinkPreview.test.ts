@@ -59,6 +59,21 @@ async function point(link: Element, type: 'pointerover' | 'pointerout') {
 }
 
 describe('editor link preview interaction', () => {
+  it('keeps an open preview visible while switching directly between links', async () => {
+    const [first, second] = editorRoot.querySelectorAll('a');
+    await point(first!, 'pointerover');
+    await wait(670);
+    assert.equal(state.open, true);
+    await point(first!, 'pointerout');
+    await point(second!, 'pointerover');
+    assert.equal(state.anchor, second);
+    assert.equal(state.open, true);
+    await wait(200);
+    assert.equal(state.open, true);
+    await point(second!, 'pointerout');
+    await wait(140);
+    assert.equal(state.open, false);
+  });
   it('waits for deliberate hover and can reopen after leaving before the delay', async () => {
     const link = editorRoot.querySelector('a')!;
     await point(link, 'pointerover');

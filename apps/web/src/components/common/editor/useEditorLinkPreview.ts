@@ -44,6 +44,7 @@ export function useEditorLinkPreview(editor: Editor) {
       clearTimeout(openTimer.current);
       anchorRef.current = link;
       setAnchor(link);
+      if (visibleRef.current) return;
       visibleRef.current = false;
       setOpen(false);
       openTimer.current = setTimeout(() => {
