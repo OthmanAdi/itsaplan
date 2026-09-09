@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Project } from '@/lib/api/endpoints/projects';
 import type { Team } from '@/lib/api/endpoints/teams';
-import { groupProjects, type ProjectSort } from './projectSwitcher';
+import { groupProjects, projectSwitcherSections, type ProjectSort } from './projectSwitcher';
 
 function project(overrides: Partial<Project> = {}): Project {
   return {
@@ -251,5 +251,95 @@ describe('groupProjects', () => {
     Object.freeze(teams);
     groupProjects(projects, teams, '', 'created', 'en');
     assert.deepEqual({ projects, teams }, original);
+  });
+});
+
+describe('projectSwitcherSections', () => {
+  it('separates hidden favorites without changing visible team order or removing empty teams', () => {
+    const visible = project();
+    const hidden = project({ id: 2, teamId: 2, key: 'HIDDEN', isHidden: true, isFavorite: true });
+    const sections = projectSwitcherSections(
+      [hidden, visible],
+      [team(), team({ id: 2, name: 'Hidden team' }), team({ id: 3, name: 'Empty' })],
+      '',
+      'key',
+      'en',
+    );
+    assert.deepEqual(
+      sections.visibleGroups.map((group) => group.teamId),
+      [1, 2, 3],
+    );
+    assert.deepEqual(
+      sections.visibleGroups.flatMap((group) => group.projects),
+      [visible],
+    );
+    assert.deepEqual(sections.hiddenProjects, [hidden]);
+  });
+
+  it('keeps results for hidden project searches exclusively in the hidden section', () => {
+    const hidden = project({ id: 2, key: 'ARCHIVE', name: 'Archived launch', isHidden: true });
+    const sections = projectSwitcherSections(
+      [project(), hidden],
+      [team()],
+      'archived launch',
+      'name',
+      'en',
+    );
+    assert.deepEqual(sections.visibleGroups, []);
+    assert.deepEqual(sections.hiddenProjects, [hidden]);
+  });
+
+  it('places a restored project in the visible section and removes it from hidden projects', () => {
+    const hidden = project({ isHidden: true });
+    const restored = { ...hidden, isHidden: false };
+    const before = projectSwitcherSections([hidden], [team()], '', 'key', 'en');
+    const after = projectSwitcherSections([restored], [team()], '', 'key', 'en');
+    assert.deepEqual(before.hiddenProjects, [hidden]);
+    assert.deepEqual(
+      before.visibleGroups.flatMap((group) => group.projects),
+      [],
+    );
+    assert.deepEqual(after.hiddenProjects, []);
+    assert.deepEqual(
+      after.visibleGroups.flatMap((group) => group.projects),
+      [restored],
+    );
+    assert.equal(hidden.isHidden, true);
+  });
+
+  it('sorts hidden projects using the selected preference without affecting visible activity', () => {
+    const projects = [
+      project({ key: 'VISIBLE', lastActivityAt: '2026-09-09T00:00:00Z' }),
+      project({ id: 2, teamId: 2, key: 'OTHER', lastActivityAt: '2026-09-08T00:00:00Z' }),
+      project({
+        id: 3,
+        teamId: 2,
+        key: 'OLDER',
+        isHidden: true,
+        lastActivityAt: '2026-09-10T00:00:00Z',
+      }),
+      project({
+        id: 4,
+        teamId: 2,
+        key: 'NEWER',
+        isHidden: true,
+        lastActivityAt: '2026-09-11T00:00:00Z',
+      }),
+    ];
+    const sections = projectSwitcherSections(
+      projects,
+      [team(), team({ id: 2 })],
+      '',
+      'activity',
+      'en',
+    );
+    assert.deepEqual(
+      sections.visibleGroups.map((group) => group.teamId),
+      [1, 2],
+    );
+    assert.deepEqual(
+      sections.hiddenProjects.map((item) => item.key),
+      ['NEWER', 'OLDER'],
+    );
   });
 });

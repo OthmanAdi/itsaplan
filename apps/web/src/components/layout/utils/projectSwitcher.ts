@@ -86,3 +86,20 @@ export function groupProjects(
   });
   return result;
 }
+
+export function projectSwitcherSections(
+  projects: Project[],
+  teams: Team[],
+  query: string,
+  sort: ProjectSort,
+  locale: string,
+): { visibleGroups: TeamGroup[]; hiddenProjects: Project[] } {
+  const visible = projects.filter((project) => !project.isHidden);
+  const hidden = projects.filter((project) => project.isHidden);
+  return {
+    visibleGroups: groupProjects(visible, teams, query, sort, locale),
+    hiddenProjects: groupProjects(hidden, teams, query, sort, locale).flatMap(
+      (group) => group.projects,
+    ),
+  };
+}

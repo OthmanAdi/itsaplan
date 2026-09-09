@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Eye, EyeOff, UserPlus, Users } from 'lucide-react';
+import { Archive, ChevronDown, UserPlus, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { manageTeamsPath } from '@/utils/paths';
 import { Button } from '@/components/ui/button';
@@ -26,13 +26,12 @@ export default function ProjectSwitcherFooter({
           variant="ghost"
           size="sm"
           className="w-full justify-start text-muted-foreground"
-          aria-pressed={showHidden}
+          aria-expanded={showHidden}
           onClick={() => onShowHiddenChange(!showHidden)}
         >
-          {showHidden ? <EyeOff /> : <Eye />}
-          {showHidden
-            ? t('projectPicker.hideHidden')
-            : t('projectPicker.showHidden', { count: hiddenCount })}
+          <Archive />
+          {t('projectPicker.hiddenProjects', { count: hiddenCount })}
+          <ChevronDown className={showHidden ? 'ms-auto rotate-180' : 'ms-auto'} />
         </Button>
       )}
       <div className="flex flex-wrap gap-1">

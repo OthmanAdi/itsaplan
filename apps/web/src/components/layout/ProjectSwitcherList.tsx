@@ -4,7 +4,8 @@ import type { Project } from '@/lib/api/endpoints/projects';
 import type { Team } from '@/lib/api/endpoints/teams';
 import { Command, CommandInput, CommandList } from '@/components/ui/command';
 import ProjectSwitcherTeamGroup from './ProjectSwitcherTeamGroup';
-import { groupProjects, type ProjectSort } from './utils/projectSwitcher';
+import ProjectSwitcherHiddenProjects from './ProjectSwitcherHiddenProjects';
+import { projectSwitcherSections, type ProjectSort } from './utils/projectSwitcher';
 
 export default function ProjectSwitcherList({
   projects,
@@ -30,8 +31,13 @@ export default function ProjectSwitcherList({
   const t = useTranslations('nav');
   const locale = useLocale();
   const [query, setQuery] = useState('');
-  const visibleProjects = projects.filter((project) => showHidden || !project.isHidden);
-  const groups = groupProjects(visibleProjects, teams, query, sort, locale);
+  const { visibleGroups: groups, hiddenProjects } = projectSwitcherSections(
+    projects,
+    teams,
+    query,
+    sort,
+    locale,
+  );
   const searching = query.trim().length > 0;
 
   return (
@@ -49,9 +55,9 @@ export default function ProjectSwitcherList({
         aria-label={t('projectPicker.search')}
       />
       <CommandList className="max-h-none min-h-0 flex-1 p-1">
-        {groups.length === 0 && (
+        {groups.every((group) => group.projects.length === 0) && (
           <p role="status" className="px-3 py-6 text-center text-sm text-muted-foreground">
-            {searching ? t('projectPicker.noResults') : t('noProjects')}
+            {searching ? t('projectPicker.noResults') : t('projectPicker.noVisibleProjects')}
           </p>
         )}
         {groups.map((group) => (
@@ -70,6 +76,13 @@ export default function ProjectSwitcherList({
             onSelectProject={onSelectProject}
           />
         ))}
+        {showHidden && (
+          <ProjectSwitcherHiddenProjects
+            projects={hiddenProjects}
+            currentProjectKey={current?.key ?? null}
+            onSelectProject={onSelectProject}
+          />
+        )}
       </CommandList>
     </Command>
   );
