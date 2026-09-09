@@ -1749,6 +1749,8 @@ export const issueActivity = pgTable(
     body: text('body'),
     action: text('action'),
     payload: jsonb('payload').$type<ActivityPayload>().notNull().default({}),
+    // Set when a comment is edited; null on entries never changed.
+    editedAt: timestamp('edited_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

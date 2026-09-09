@@ -10,7 +10,9 @@ export type WebhookEventType =
   | 'issue.state_changed'
   | 'issue.label_changed'
   | 'issue.link_changed'
-  | 'comment.created';
+  | 'comment.created'
+  | 'comment.updated'
+  | 'comment.deleted';
 
 export const WEBHOOK_EVENT_TYPES: WebhookEventType[] = [
   'issue.created',
@@ -21,6 +23,8 @@ export const WEBHOOK_EVENT_TYPES: WebhookEventType[] = [
   'issue.label_changed',
   'issue.link_changed',
   'comment.created',
+  'comment.updated',
+  'comment.deleted',
 ];
 
 export interface Webhook {

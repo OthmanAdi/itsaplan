@@ -27,6 +27,11 @@ export const WEBHOOK_EVENT_TYPES = [
   'issue.label_changed',
   'issue.link_changed',
   'comment.created',
+  // An edit changes a comment's body; a delete removes the comment and its replies.
+  // Both carry the comment as their payload, and neither fires comment.created
+  // again for the replies a delete takes with it.
+  'comment.updated',
+  'comment.deleted',
 ] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 

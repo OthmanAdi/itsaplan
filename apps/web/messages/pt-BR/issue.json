@@ -220,7 +220,12 @@
     "cancel": "Cancelar",
     "toSend": "para enviar",
     "unknownAuthor": "Desconhecido",
-    "goToLastComment": "Ir para o último comentário"
+    "goToLastComment": "Ir para o último comentário",
+    "edit": "Editar",
+    "edited": "editado",
+    "deleteComment": "Excluir comentário",
+    "deleteCommentTitle": "Excluir este comentário?",
+    "deleteCommentConfirmation": "O comentário e suas respostas serão excluídos permanentemente."
   },
   "stats": {
     "title": "Estatísticas",
@@ -318,7 +323,9 @@
     "pullRequestOpened": "abriu o pull request <v>{pr}</v>",
     "worklogAdded": "registrou <v>{time}</v> em <v>{date}</v>",
     "worklogChanged": "alterou o registro de <v>{from}</v> em <v>{fromDate}</v> para <v>{to}</v> em <v>{date}</v>",
-    "worklogRemoved": "removeu os <v>{time}</v> registrados em <v>{date}</v>"
+    "worklogRemoved": "removeu os <v>{time}</v> registrados em <v>{date}</v>",
+    "commentEdited": "editou um comentário",
+    "commentDeleted": "excluiu um comentário"
   },
   "development": {
     "title": "Desenvolvimento",

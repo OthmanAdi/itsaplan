@@ -10,6 +10,7 @@ import {
   Link2,
   ListChecks,
   ListTree,
+  MessageSquare,
   Pencil,
   RefreshCw,
   Shapes,
@@ -58,4 +59,6 @@ export const ACTION_ICON: Record<ActivityAction, LucideIcon> = {
   github_pr: GitPullRequest,
   agent_started: Bot,
   agent_finished: Bot,
+  comment_edited: MessageSquare,
+  comment_deleted: MessageSquare,
 };

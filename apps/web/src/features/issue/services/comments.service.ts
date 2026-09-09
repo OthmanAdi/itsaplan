@@ -15,6 +15,8 @@ import {
   listTimeline,
   listTimelineItems,
   createComment,
+  updateComment,
+  deleteComment,
 } from '@/lib/api/endpoints/activity';
 import { qk } from '@/services/queryKeys';
 
@@ -82,6 +84,23 @@ export function useCreateComment() {
       issueId: number;
       input: { body: string; replyToId?: number };
     }) => createComment(issueId, input),
+    onSuccess: (_data, { issueId }) => void qc.invalidateQueries({ queryKey: qk.feed(issueId) }),
+  });
+}
+
+export function useUpdateComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ commentId, body }: { issueId: number; commentId: number; body: string }) =>
+      updateComment(commentId, { body }),
+    onSuccess: (_data, { issueId }) => void qc.invalidateQueries({ queryKey: qk.feed(issueId) }),
+  });
+}
+
+export function useDeleteComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ commentId }: { issueId: number; commentId: number }) => deleteComment(commentId),
     onSuccess: (_data, { issueId }) => void qc.invalidateQueries({ queryKey: qk.feed(issueId) }),
   });
 }

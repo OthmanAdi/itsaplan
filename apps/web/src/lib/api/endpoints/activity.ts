@@ -63,7 +63,9 @@ export type ActivityAction =
   // Entries recorded before the integration took other providers.
   | 'github_pr'
   | 'agent_started'
-  | 'agent_finished';
+  | 'agent_finished'
+  | 'comment_edited'
+  | 'comment_deleted';
 
 // One side of a change: the display-ready text snapshot (column/label/type/assignee
 // name, raw priority, ISO date, or the new text of a long field) and the id of the
@@ -104,6 +106,8 @@ export interface FeedItem {
   action: ActivityAction | null;
   payload: ActivityPayload;
   createdAt: string;
+  // Set once a comment is edited; null while it is in its author's original words.
+  editedAt: string | null;
 }
 
 // Opaque keyset cursor returned by the feed endpoint; pass it back to load the
@@ -176,3 +180,12 @@ export const createComment = (issueId: number, input: { body: string; replyToId?
     method: 'POST',
     body: JSON.stringify(input),
   });
+
+export const updateComment = (commentId: number, input: { body: string }) =>
+  request<FeedItem>(`/comments/${commentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+
+export const deleteComment = (commentId: number) =>
+  request<void>(`/comments/${commentId}`, { method: 'DELETE' });

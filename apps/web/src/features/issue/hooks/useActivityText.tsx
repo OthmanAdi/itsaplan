@@ -156,6 +156,10 @@ export function useActivityText() {
         return { line: line('archived') };
       case 'restored':
         return { line: line('restored') };
+      case 'comment_edited':
+        return { line: line('commentEdited') };
+      case 'comment_deleted':
+        return { line: line('commentDeleted') };
       case 'agent_started':
         return { line: line('agentStarted') };
       case 'agent_finished':
