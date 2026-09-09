@@ -59,25 +59,40 @@ async function point(link: Element, type: 'pointerover' | 'pointerout') {
 }
 
 describe('editor link preview interaction', () => {
-  it('keeps an open preview visible while switching directly between links', async () => {
+  it('keeps the outgoing anchor while every new link waits its full hover delay', async () => {
     const [first, second] = editorRoot.querySelectorAll('a');
     await point(first!, 'pointerover');
     await wait(670);
     assert.equal(state.open, true);
     await point(first!, 'pointerout');
     await point(second!, 'pointerover');
-    assert.equal(state.anchor, second);
-    assert.equal(state.open, true);
-    await wait(200);
-    assert.equal(state.open, true);
+    assert.equal(state.anchor, first);
+    assert.equal(state.candidateAnchor, second);
+    assert.equal(state.open, false);
+    await wait(500);
+    assert.equal(state.anchor, first);
+    assert.equal(state.open, false);
+    const third = dom.window.document.createElement('a');
+    third.href = 'https://example.com/c';
+    editorRoot.append(third);
     await point(second!, 'pointerout');
+    await point(third, 'pointerover');
+    await wait(500);
+    assert.equal(state.anchor, first);
+    assert.equal(state.candidateAnchor, third);
+    assert.equal(state.open, false);
+    await wait(170);
+    assert.equal(state.anchor, third);
+    assert.equal(state.open, true);
+    await point(third, 'pointerout');
     await wait(140);
     assert.equal(state.open, false);
   });
   it('waits for deliberate hover and can reopen after leaving before the delay', async () => {
     const link = editorRoot.querySelector('a')!;
     await point(link, 'pointerover');
-    assert.equal(state.anchor, link);
+    assert.equal(state.candidateAnchor, link);
+    assert.equal(state.anchor, null);
     assert.equal(state.open, false);
     await point(link, 'pointerout');
     await wait(140);
@@ -108,7 +123,8 @@ describe('editor link preview interaction', () => {
     await point(second!, 'pointerover');
     await wait(300);
     assert.equal(state.open, false);
-    assert.equal(state.anchor, second);
+    assert.equal(state.candidateAnchor, second);
+    assert.equal(state.anchor, null);
     await wait(370);
     assert.equal(state.open, true);
     await point(second!, 'pointerout');

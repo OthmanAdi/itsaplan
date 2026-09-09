@@ -4,6 +4,7 @@ import { previewableLink } from './previewableLink';
 
 export function useEditorLinkPreview(editor: Editor) {
   const [anchor, setAnchor] = useState<HTMLAnchorElement | null>(null);
+  const [candidateAnchor, setCandidateAnchor] = useState<HTMLAnchorElement | null>(null);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLAnchorElement | null>(null);
   const visibleRef = useRef(false);
@@ -18,6 +19,7 @@ export function useEditorLinkPreview(editor: Editor) {
   const close = useCallback(() => {
     if (!anchorRef.current) return;
     clearTimeout(openTimer.current);
+    openTimer.current = undefined;
     clearTimeout(closeTimer.current);
     clearTimeout(clearTimer.current);
     visibleRef.current = false;
@@ -25,10 +27,12 @@ export function useEditorLinkPreview(editor: Editor) {
     clearTimer.current = setTimeout(() => {
       anchorRef.current = null;
       setAnchor(null);
+      setCandidateAnchor(null);
     }, 160);
   }, []);
   const leave = useCallback(() => {
     clearTimeout(openTimer.current);
+    openTimer.current = undefined;
     clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(close, 120);
   }, [close]);
@@ -40,14 +44,15 @@ export function useEditorLinkPreview(editor: Editor) {
       const link = previewableLink(event.target, root);
       if (!link) return;
       keepOpen();
-      if (anchorRef.current === link && visibleRef.current) return;
+      if (anchorRef.current === link && (visibleRef.current || openTimer.current)) return;
       clearTimeout(openTimer.current);
       anchorRef.current = link;
-      setAnchor(link);
-      if (visibleRef.current) return;
+      setCandidateAnchor(link);
       visibleRef.current = false;
       setOpen(false);
       openTimer.current = setTimeout(() => {
+        openTimer.current = undefined;
+        setAnchor(link);
         visibleRef.current = true;
         setOpen(true);
       }, 650);
@@ -83,5 +88,5 @@ export function useEditorLinkPreview(editor: Editor) {
     };
   }, [editor, close, leave, keepOpen]);
 
-  return { anchor, open, keepOpen, leave, close };
+  return { anchor, candidateAnchor, open, keepOpen, leave, close };
 }

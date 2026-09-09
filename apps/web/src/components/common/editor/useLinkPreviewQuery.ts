@@ -41,6 +41,7 @@ export function useLinkPreviewQuery(url: string | undefined) {
     staleTime: internal ? 0 : 5 * 60_000,
     gcTime: internal ? 0 : 2 * 60_000,
     retry: false,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
   return {

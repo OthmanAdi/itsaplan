@@ -9,9 +9,10 @@ import styles from './EditorLinkPreview.module.css';
 
 export default function EditorLinkPreview({ editor }: { editor: Editor }) {
   const t = useTranslations('common.editor');
-  const { anchor, open, close, keepOpen, leave } = useEditorLinkPreview(editor);
+  const { anchor, candidateAnchor, open, close, keepOpen, leave } = useEditorLinkPreview(editor);
   const virtualRef = useRef({ getBoundingClientRect: () => new DOMRect() });
   virtualRef.current.getBoundingClientRect = () => anchor?.getBoundingClientRect() ?? new DOMRect();
+  useLinkPreviewQuery(candidateAnchor?.href);
   const { data, isPending } = useLinkPreviewQuery(anchor?.href);
   if (!anchor) return null;
 
