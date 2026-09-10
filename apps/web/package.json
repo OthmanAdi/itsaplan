@@ -9,7 +9,7 @@
     "start": "next start -p 3001",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test --preload ./test/setup.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
