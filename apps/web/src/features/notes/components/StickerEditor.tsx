@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import { useTranslations } from 'next-intl';
+import EditorLinkPreview from '@/components/common/editor/EditorLinkPreview';
 import { openLinkOnModifierClick } from '@/components/common/editor/modifierClickLink';
 import { createLinkKeyboardHandlers } from '@/components/common/editor/linkKeyboardHandlers';
 import { stickerEditorExtensions } from '../utils/stickerEditorExtensions';
@@ -41,5 +42,10 @@ export default function StickerEditor({
   }, [editor, editable]);
 
   if (!editor) return null;
-  return <EditorContent editor={editor} />;
+  return (
+    <>
+      <EditorContent editor={editor} />
+      <EditorLinkPreview editor={editor} />
+    </>
+  );
 }
