@@ -27,7 +27,17 @@ export function ColumnSearchControl() {
       <label htmlFor={id} className="sr-only">
         {t('label')}
       </label>
-      <InputGroup className="h-8 bg-background transition-[color,box-shadow,border-color] duration-150 motion-reduce:transition-none pointer-coarse:h-10">
+      <InputGroup
+        className="h-8 bg-background transition-[color,box-shadow,border-color] duration-150 motion-reduce:transition-none pointer-coarse:h-10"
+        onBlur={(event) => {
+          const next = event.relatedTarget;
+          if (search.query || search.active?.mode !== 'inline') return;
+          // Leaving the window also blurs with no target; that keeps the search open.
+          if (next ? event.currentTarget.closest('section')?.contains(next) : !document.hasFocus())
+            return;
+          search.close(false);
+        }}
+      >
         <InputGroupAddon>
           <Search aria-hidden />
         </InputGroupAddon>

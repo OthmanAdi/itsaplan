@@ -211,14 +211,13 @@ export default function SwimlaneBoard({
                       wip={wipOf(column)}
                       filtered={filtered}
                     />
-                    {!readOnly && search.active?.key !== column.key && (
-                      <SelectAllToggle
-                        ids={idsByColumn.get(column.key) ?? []}
-                        className="ml-auto"
-                      />
-                    )}
+                    <div className="ml-auto flex items-center gap-1">
+                      {!readOnly && search.active?.key !== column.key && (
+                        <SelectAllToggle ids={idsByColumn.get(column.key) ?? []} />
+                      )}
+                      <ColumnSearchEntry groupKey={column.key} />
+                    </div>
                   </div>
-                  <ColumnSearchEntry groupKey={column.key} />
                   {search.active?.key === column.key && search.active.mode === 'inline' && (
                     <ColumnSearchPanel className="absolute start-0 top-8 z-20 h-[calc(100cqh-48px)] w-full rounded-md bg-kanban-column p-2" />
                   )}

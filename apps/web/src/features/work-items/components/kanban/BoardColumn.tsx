@@ -140,9 +140,10 @@ export function BoardColumn({
           <WipCount filteredCount={issues.length} wip={wip} filtered={filtered} />
         </div>
         <div className="flex items-center gap-1">
+          {!readOnly && !searching && <SelectAllToggle ids={issues.map((i) => i.id)} />}
+          <ColumnSearchEntry groupKey={group.key} />
           {!readOnly && (
             <>
-              {!searching && <SelectAllToggle ids={issues.map((i) => i.id)} />}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -206,7 +207,6 @@ export function BoardColumn({
         </div>
       </div>
 
-      {!inlineSearch && <ColumnSearchEntry groupKey={group.key} />}
       {inlineSearch && <ColumnSearchPanel />}
       <div
         ref={mergedRef}

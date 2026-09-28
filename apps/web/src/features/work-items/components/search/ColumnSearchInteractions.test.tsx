@@ -18,6 +18,7 @@ let dom: JSDOM;
 let originals: Map<string, PropertyDescriptor | undefined>;
 let Panel: ComponentType;
 let Surface: ComponentType;
+let Entry: ComponentType<{ groupKey: string }>;
 let loading = false;
 let modal = false;
 let overlayOpen = false;
@@ -78,13 +79,8 @@ function Probe() {
     <RouterContext.Provider value={router}>
       <NextIntlClientProvider locale="en" timeZone="UTC" messages={{ workItems: messages }}>
         <ColumnSearchContext.Provider value={search}>
-          <button
-            ref={(element) => {
-              if (element) state.entryRefs.current.set('c1', element);
-            }}
-          >
-            Search tasks
-          </button>
+          <Entry groupKey="c1" />
+          <button>Elsewhere</button>
           {state.active?.mode === 'inline' && <Panel />}
           <Surface />
         </ColumnSearchContext.Provider>
@@ -191,6 +187,7 @@ beforeEach(async () => {
   window.matchMedia = (() => ({ matches: !modal })) as unknown as typeof window.matchMedia;
   Panel = (await import('./ColumnSearchPanel')).ColumnSearchPanel;
   Surface = (await import('./ColumnSearchSurface')).ColumnSearchSurface;
+  Entry = (await import('./ColumnSearchEntry')).ColumnSearchEntry;
   const { createRoot } = await import('react-dom/client');
   root = createRoot(document.getElementById('root')!);
   act(() => root.render(<Probe />));
@@ -281,6 +278,45 @@ describe('column search controls and results', () => {
     await frame();
     assert.equal(search.active, null);
     assert.equal(document.activeElement, search.entryRefs.current.get('c1'));
+  });
+
+  it('opens from the header icon and returns focus to it when closed', async () => {
+    const icon = document.querySelector<HTMLButtonElement>('[aria-label="Search tasks"]')!;
+    assert.equal(icon.getAttribute('aria-expanded'), 'false');
+    act(() => icon.click());
+    await frame();
+    assert.equal(search.active?.key, 'c1');
+    assert.equal(icon.getAttribute('aria-expanded'), 'true');
+    assert.equal(document.activeElement, document.querySelector('input'));
+    act(() => document.querySelector<HTMLButtonElement>('[aria-label="Close search"]')!.click());
+    await frame();
+    assert.equal(search.active, null);
+    assert.equal(document.activeElement, icon);
+  });
+
+  it('closes an empty search when focus leaves the field, without moving focus', async () => {
+    act(() => search.open('c1'));
+    await frame();
+    const elsewhere = [...document.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Elsewhere',
+    )!;
+    act(() => elsewhere.focus());
+    await frame();
+    assert.equal(search.active, null);
+    assert.equal(document.activeElement, elsewhere);
+  });
+
+  it('keeps a search with a query open when focus leaves the field', async () => {
+    act(() => search.open('c1'));
+    await frame();
+    act(() => search.changeQuery('Task 12'));
+    const elsewhere = [...document.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Elsewhere',
+    )!;
+    act(() => elsewhere.focus());
+    await frame();
+    assert.equal(search.active?.key, 'c1');
+    assert.equal(search.query, 'Task 12');
   });
 
   it('keeps only a clear button inside the full-screen search field', async () => {
