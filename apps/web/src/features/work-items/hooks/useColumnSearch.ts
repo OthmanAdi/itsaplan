@@ -162,7 +162,7 @@ export function useColumnSearch(props: WorkItemsViewProps, scope: string, pathna
       state.open(key);
     },
     openIssue,
-    issueHref: props.issueHref ?? ((issue) => issuePath(project.project.key, issue.sequenceNumber)),
+    issueHref: props.issueHref ?? ((issue) => issuePath(project.project.ref, issue.sequenceNumber)),
     viewFilters: props.onViewFilters
       ? () => {
           if (state.active?.mode === 'modal') state.close(false);

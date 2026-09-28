@@ -38,15 +38,15 @@ const issues = Array.from({ length: 600 }, (_, index) => ({
 })) as unknown as BoardIssue[];
 const entries = prepareColumnSearchEntries(issues, fields);
 const router = {
-  pathname: '/project/TEST',
-  asPath: '/project/TEST',
+  pathname: '/acme/TEST',
+  asPath: '/acme/TEST',
   push: () => {
     throw new Error('Task activation must use the board opening callback');
   },
 } as unknown as NonNullable<ContextType<typeof RouterContext>>;
 
 function Probe() {
-  const state = useColumnSearchState('test:status', '/project/TEST');
+  const state = useColumnSearchState('test:status', '/acme/TEST');
   search = {
     ...state,
     results: searchColumnEntries(entries, state.matchQuery, 'TEST'),
@@ -67,7 +67,7 @@ function Probe() {
     viewFilters: undefined,
     enabled: true,
     externalOverlayOpen: overlayOpen,
-    issueHref: (issue: BoardIssue) => `/project/TEST/issue/${issue.sequenceNumber}`,
+    issueHref: (issue: BoardIssue) => `/acme/issue/TEST-${issue.sequenceNumber}`,
     openIssue: (id: number) => {
       state.draft.focusedId = id;
       state.returnToResult.current = true;
@@ -115,7 +115,7 @@ beforeEach(async () => {
     ].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]),
   );
   dom = new JSDOM('<!doctype html><div id="root"></div>', {
-    url: 'https://planner.test/project/TEST',
+    url: 'https://planner.test/acme/TEST',
     pretendToBeVisual: true,
   });
   const resizeObserver = class {
@@ -235,7 +235,7 @@ describe('column search controls and results', () => {
     assert.ok(
       document.querySelector<HTMLElement>('[data-column-search-results]')!.scrollTop > 60_000,
     );
-    assert.equal(document.activeElement?.getAttribute('href'), '/project/TEST/issue/600');
+    assert.equal(document.activeElement?.getAttribute('href'), '/acme/issue/TEST-600');
     key(document.activeElement!, 'Home');
     await frame();
     assert.equal(document.activeElement?.getAttribute('data-search-task'), '1');
@@ -285,7 +285,7 @@ describe('column search controls and results', () => {
     act(() => search.resultsRef.current?.focusIssue(600));
     await frame();
     const result = document.querySelector<HTMLAnchorElement>('[data-search-task="600"]')!;
-    assert.equal(result.getAttribute('href'), '/project/TEST/issue/600');
+    assert.equal(result.getAttribute('href'), '/acme/issue/TEST-600');
     act(() => result.click());
     assert.equal(search.returnToResult.current, true);
     assert.equal(search.draft.focusedId, 600);

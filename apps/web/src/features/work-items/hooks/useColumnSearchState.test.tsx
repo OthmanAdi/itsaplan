@@ -11,7 +11,7 @@ let root: Root;
 let search: ReturnType<typeof useColumnSearchState>;
 let fine = true;
 let originals: Map<string, PropertyDescriptor | undefined>;
-const pathname = '/project/TEST';
+const pathname = '/acme/TEST';
 
 function Probe({ scope = 'viewer:TEST:status' }: { scope?: string }) {
   search = useColumnSearchState(scope, pathname);
@@ -177,7 +177,7 @@ describe('column search visit state', () => {
     act(() => search.open('c1'));
     act(() => search.changeQuery('origin'));
     const stale = search.capture;
-    window.history.pushState({ __NA: true }, '', '/project/TEST/issue/1');
+    window.history.pushState({ __NA: true }, '', '/acme/issue/TEST-1');
     stale();
     assert.deepEqual(window.history.state, { __NA: true });
     window.history.back();
