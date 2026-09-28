@@ -24,7 +24,7 @@ import {
 
 export default function InboxView({ project }: { project: ProjectDetail }) {
   const t = useTranslations('inbox');
-  const projectKey = project.project.key;
+  const projectKey = project.project.ref;
   const projectId = project.project.id;
 
   const { filters, changeFilters } = useInboxFilters(projectKey);
@@ -92,6 +92,7 @@ export default function InboxView({ project }: { project: ProjectDetail }) {
           key={selected.issueId}
           project={project}
           issueId={selected.issueId}
+          issueSeq={selected.issueSeq}
           isMobile={isMobile}
           onBack={() => setSelected(null)}
           onDeleted={() => setSelected(null)}

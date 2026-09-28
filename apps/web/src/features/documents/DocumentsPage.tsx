@@ -1,7 +1,8 @@
 'use client';
 
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useShellRoute } from '@/hooks/useShellRoute';
 import { useShell } from '@/context/shellContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
@@ -23,24 +24,52 @@ import DocumentLoadingState from './components/DocumentLoadingState';
 import DocumentsIndex from './components/DocumentsIndex';
 import { documentBelongsToTab, type DocumentListTab } from './utils/documentList';
 import { documentAncestors } from './utils/documentTree';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useDocumentNavigation, useRecentDocuments } from '@/hooks/useDocumentNavigation';
 import { useTranslations } from 'next-intl';
+
+const listDefaults: { search: string; tab: DocumentListTab } = { search: '', tab: 'public' };
 
 export default function DocumentsPage() {
   const { project } = useShell();
-  const params = useParams<{ projectKey: string; documentId?: string }>();
+  const params = useParams<{ documentId?: string }>();
   const router = useRouter();
   const t = useTranslations('documents');
   const { can, isOwner } = usePermissions();
-  const projectKey = params.projectKey;
+  const projectKey = useShellRoute().projectKey ?? '';
   const routeId = params.documentId ? Number(params.documentId) : null;
   const documentId = routeId && Number.isFinite(routeId) ? routeId : null;
-  const [search, setSearch] = useState('');
-  const [listTab, setListTab] = useState<DocumentListTab>('public');
-  const deferredSearch = useDeferredValue(search.trim());
+  const [navigation, setNavigation] = useDocumentNavigation(projectKey, 'list', listDefaults);
+  const search = typeof navigation.search === 'string' ? navigation.search : '';
+  const listTab = ['public', 'private', 'favorites', 'archived'].includes(navigation.tab)
+    ? navigation.tab
+    : 'public';
+  const setSearch = (search: string) => setNavigation((previous) => ({ ...previous, search }));
+  const setListTab = (tab: DocumentListTab) => setNavigation((previous) => ({ ...previous, tab }));
+  const deferredSearch = useDebouncedValue(search.trim(), 250);
+  const { visit } = useRecentDocuments(projectKey);
+  useEffect(() => {
+    if (documentId !== null) visit(documentId);
+  }, [documentId, visit]);
   const allDocumentsQuery = useDocumentsQuery(projectKey);
-  const allArchivedDocumentsQuery = useDocumentsQuery(projectKey, '', true);
-  const activeDocumentsQuery = useDocumentsQuery(projectKey, deferredSearch);
-  const archivedDocumentsQuery = useDocumentsQuery(projectKey, deferredSearch, true);
+  const allArchivedDocumentsQuery = useDocumentsQuery(
+    projectKey,
+    '',
+    true,
+    documentId !== null || listTab === 'archived',
+  );
+  const activeDocumentsQuery = useDocumentsQuery(
+    projectKey,
+    deferredSearch,
+    false,
+    documentId === null && listTab !== 'archived',
+  );
+  const archivedDocumentsQuery = useDocumentsQuery(
+    projectKey,
+    deferredSearch,
+    true,
+    documentId === null && listTab === 'archived',
+  );
   const visibleDocumentsQuery =
     listTab === 'archived' ? archivedDocumentsQuery : activeDocumentsQuery;
   const filteredDocuments = (visibleDocumentsQuery.data ?? []).filter((document) =>
@@ -76,6 +105,7 @@ export default function DocumentsPage() {
             qk.document(projectKey, documentId),
             qk.documentRevisions(projectKey, documentId),
             qk.documentAssets(projectKey, documentId),
+            qk.documentComments(projectKey, documentId),
             qk.documentIssueLinks(projectKey, documentId),
           ]),
     ],

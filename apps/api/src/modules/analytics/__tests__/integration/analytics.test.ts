@@ -34,6 +34,7 @@ async function createIssue(
     dueDate?: string | null;
     assigneeUserId?: string | null;
     typeId?: number | null;
+    initiativeId?: number | null;
   } = {},
 ) {
   const { title = 'Task', ...rest } = extra;
@@ -290,6 +291,56 @@ describe('analytics', () => {
   });
 
   describe('pulse', () => {
+    it('counts the authenticated actor independently of assignment', async () => {
+      const { asOwner, owner, col } = await setupProject();
+      const second = await signUpTestUser({ name: 'Second' });
+      const invited = await asOwner
+        .projects({ projectKey: 'MKT' })
+        .invites.post({ email: second.email, role: 'owner' });
+      expect(invited.status).toBe(201);
+      const asSecond = authedApi(second.cookie);
+      await asSecond.invites({ token: invited.data!.token }).accept.post();
+      await createIssue(asOwner, col.started, { assigneeUserId: second.userId });
+      await createIssue(asSecond, col.started, { assigneeUserId: owner.userId });
+      await createIssue(asSecond, col.started);
+      for (const unit of ['hour', 'day', 'week'] as const) {
+        const all = await asOwner
+          .projects({ projectKey: 'MKT' })
+          .analytics.pulse.get({ query: { unit, columns: 2 } });
+        const mine = await asOwner
+          .projects({ projectKey: 'MKT' })
+          .analytics.pulse.get({ query: { unit, columns: 2, scope: 'me' } });
+        const theirs = await asSecond
+          .projects({ projectKey: 'MKT' })
+          .analytics.pulse.get({ query: { unit, columns: 2, scope: 'me' } });
+        expect(mine.status).toBe(200);
+        expect(theirs.status).toBe(200);
+        expect(mine.data!.reduce((sum, b) => sum + b.count, 0)).toBe(1);
+        expect(theirs.data!.reduce((sum, b) => sum + b.count, 0)).toBe(2);
+        expect(all.data!.reduce((sum, b) => sum + b.count, 0)).toBe(3);
+        expect(mine.data!.map((b) => b.label)).toEqual(all.data!.map((b) => b.label));
+      }
+    });
+
+    it('keeps empty personal periods zero-filled and rejects unknown scopes', async () => {
+      const { asOwner } = await setupProject();
+      const res = await asOwner
+        .projects({ projectKey: 'MKT' })
+        .analytics.pulse.get({ query: { scope: 'me', columns: 2 } });
+      expect(res.status).toBe(200);
+      expect(res.data).toHaveLength(14);
+      expect(res.data!.every((b) => b.count === 0)).toBe(true);
+      const invalid = await asOwner
+        .projects({ projectKey: 'MKT' })
+        .analytics.pulse.get({ query: { scope: 'unknown' as 'me' } });
+      expect(invalid.status).toBe(400);
+      const outsider = await signUpTestUser();
+      const denied = await authedApi(outsider.cookie)
+        .projects({ projectKey: 'MKT' })
+        .analytics.pulse.get({ query: { scope: 'me' } });
+      expect(denied.status).toBe(403);
+    });
+
     it('returns a zero-filled default day series for an empty project', async () => {
       const { asOwner } = await setupProject();
       const res = await asOwner.projects({ projectKey: 'MKT' }).analytics.pulse.get();
@@ -363,6 +414,99 @@ describe('analytics', () => {
       expect(res.status).toBe(200);
       expect(res.data).toHaveLength(1);
       expect(res.data?.[0]).toMatchObject({ created: 2, closed: 1 });
+    });
+  });
+
+  describe('burnup', () => {
+    const burnup = (api: Api, query: Record<string, number> = {}) =>
+      api.projects({ projectKey: 'MKT' }).analytics.burnup.get({ query });
+
+    // Treaty turns date-shaped strings into Date objects on the way in; compare the
+    // calendar day.
+    const dayOf = (v: unknown) => new Date(v as string).toISOString().slice(0, 10);
+
+    it('returns a flat zero series and no forecast for an empty project', async () => {
+      const { asOwner } = await setupProject();
+      const res = await burnup(asOwner);
+      expect(res.status).toBe(200);
+      expect(res.data?.days).toHaveLength(90);
+      expect(res.data?.days.at(-1)).toMatchObject({ scope: 0, started: 0, completed: 0 });
+      expect(res.data?.forecast).toEqual({
+        windowDays: 28,
+        velocityPerDay: 0,
+        scopeGrowthPerDay: 0,
+        remaining: 0,
+        projectedScope: 0,
+        projectedDate: null,
+        optimisticDate: null,
+        pessimisticDate: null,
+      });
+      expect(res.data?.targetDate).toBeNull();
+    });
+
+    it('counts the state of every issue at the end of today and projects a date', async () => {
+      const { asOwner, col } = await setupProject();
+      const a = await createIssue(asOwner, col.started);
+      await createIssue(asOwner, col.started);
+      await createIssue(asOwner, col.backlog);
+      await moveIssue(asOwner, a.id, col.completed);
+
+      const res = await burnup(asOwner);
+      expect(res.status).toBe(200);
+      const today = res.data!.days.at(-1)!;
+      expect(today).toMatchObject({ scope: 3, started: 2, completed: 1 });
+      expect(dayOf(today.date)).toBe(dayOf(new Date()));
+      // One closing in the latest of the four weeks, weighted 4 of 10 → 4/70 per
+      // day, two issues left.
+      expect(res.data?.forecast).toMatchObject({ windowDays: 28, remaining: 2 });
+      expect(res.data?.forecast.velocityPerDay).toBeCloseTo(0.06, 2);
+      const { optimisticDate, projectedDate, pessimisticDate } = res.data!.forecast;
+      expect(projectedDate).not.toBeNull();
+      expect(dayOf(projectedDate) > dayOf(today.date)).toBe(true);
+      expect(dayOf(optimisticDate) < dayOf(projectedDate)).toBe(true);
+      expect(dayOf(pessimisticDate) > dayOf(projectedDate)).toBe(true);
+    });
+
+    it('drops canceled issues from the scope and gives no date without closings', async () => {
+      const { asOwner, col } = await setupProject();
+      await createIssue(asOwner, col.backlog);
+      const b = await createIssue(asOwner, col.backlog);
+      await moveIssue(asOwner, b.id, col.canceled);
+
+      const res = await burnup(asOwner);
+      expect(res.status).toBe(200);
+      expect(res.data?.days.at(-1)).toMatchObject({ scope: 1, started: 0, completed: 0 });
+      expect(res.data?.forecast).toMatchObject({ remaining: 1, projectedDate: null });
+    });
+
+    it('limits the series to one initiative and returns its target date', async () => {
+      const { asOwner, col } = await setupProject();
+      const created = await asOwner
+        .projects({ projectKey: 'MKT' })
+        .initiatives.post({ title: 'Launch', targetDate: '2030-06-30' });
+      expect(created.status).toBe(201);
+      const initiativeId = created.data!.id;
+      await createIssue(asOwner, col.started, { initiativeId });
+      await createIssue(asOwner, col.started);
+
+      const res = await burnup(asOwner, { initiativeId });
+      expect(res.status).toBe(200);
+      expect(res.data?.days.at(-1)).toMatchObject({ scope: 1, started: 1, completed: 0 });
+      expect(dayOf(res.data?.targetDate)).toBe('2030-06-30');
+    });
+
+    it('returns 404 for an initiative that is not in the project', async () => {
+      const { asOwner } = await setupProject();
+      const res = await burnup(asOwner, { initiativeId: 999999 });
+      expect(res.status).toBe(404);
+    });
+
+    it('clamps the window to at least a week and the forecast window to a week', async () => {
+      const { asOwner } = await setupProject();
+      const res = await burnup(asOwner, { days: 1, forecastWeeks: 0 });
+      expect(res.status).toBe(200);
+      expect(res.data?.days).toHaveLength(7);
+      expect(res.data?.forecast.windowDays).toBe(6);
     });
   });
 
@@ -633,6 +777,7 @@ describe('analytics', () => {
       expect((await scope.analytics.breakdown.get({ query: { by: 'status' } })).status).toBe(403);
       expect((await scope.analytics.pulse.get()).status).toBe(403);
       expect((await scope.analytics.throughput.get()).status).toBe(403);
+      expect((await scope.analytics.burnup.get()).status).toBe(403);
       expect((await scope.analytics.activity.get()).status).toBe(403);
       expect((await scope['analytics']['agent-runs'].get()).status).toBe(403);
       expect((await scope['analytics']['agent-run-stats'].get()).status).toBe(403);

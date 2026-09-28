@@ -15,7 +15,12 @@ export interface Project {
   id: number;
   teamId: number;
   teamName: string;
+  // The team's slug, or its id while it has none.
+  teamRef: string;
   key: string;
+  // "<teamRef>.<key>": how the API and the app's paths name the project. The key
+  // alone is unique only within the team.
+  ref: string;
   name: string;
   description: string;
   // Whether the team's MCP reach covers this project, and whether the team is
@@ -46,6 +51,10 @@ export interface Project {
   // Independent of the time estimate.
   timeLoggingEnabled: boolean;
   createdAt: string;
+  // Latest work-item activity or comment, present on the project list response.
+  lastActivityAt?: string | null;
+  isFavorite?: boolean;
+  isHidden?: boolean;
   // The caller's role in this project. Only present on the /projects list
   // response; absent on the create/copy responses.
   role?: MemberRole;
@@ -112,12 +121,13 @@ export interface ProjectDefaults {
 
 export const listProjects = () => request<Project[]>('/projects');
 
-export const createProject = (input: {
-  key: string;
-  name: string;
-  description?: string;
-  preset?: string;
-}) => request<Project>('/projects', { method: 'POST', body: JSON.stringify(input) });
+export type ProjectPreferencePatch = { isFavorite?: boolean; isHidden?: boolean };
+
+export const updateProjectPreferences = (projectKey: string, patch: ProjectPreferencePatch) =>
+  request<{ isFavorite: boolean; isHidden: boolean }>(`/projects/${projectKey}/preferences`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
 
 // Update a project's name/description. The key is immutable, so it is not sent.
 export const updateProject = (projectKey: string, patch: { name?: string; description?: string }) =>

@@ -49,16 +49,19 @@ export const appSecret = pgTable('app_secret', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-// A team owns projects and holds its own member list. Every account is given one at
-// registration, named after its username, and every project belongs to exactly one
-// team.
+// A team owns projects and holds its own member list. Every project belongs to exactly
+// one team.
 export const team = pgTable('team', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
+  // The team's segment in web URLs (/acme/MKT). Null until an owner sets one; the
+  // team id stands in for it until then.
+  slug: text('slug').unique(),
   // Whether the team is reachable through the MCP server at all. Off closes both the
   // team's own resources (agents, skills, tools, roles, integrations) and every
   // project it owns, whatever each project's own flag says.
   mcpEnabled: boolean('mcp_enabled').notNull().default(true),
+  defaultAgentIds: jsonb('default_agent_ids').$type<number[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -97,41 +100,45 @@ export const teamMember = pgTable(
 // issues. next_sequence is the atomic counter behind each issue's human
 // identifier (e.g. "MKT-42"): incrementing it under a row lock keeps concurrent
 // creates from colliding.
-export const project = pgTable('project', {
-  id: serial('id').primaryKey(),
-  teamId: integer('team_id')
-    .notNull()
-    .references(() => team.id, { onDelete: 'cascade' }),
-  key: text('key').notNull().unique(),
-  name: text('name').notNull(),
-  description: text('description').notNull().default(''),
-  nextSequence: integer('next_sequence').notNull().default(1),
-  // Whether this project is in the team's MCP reach. Managed from the team's MCP
-  // settings, not from the project, and only counts while team.mcp_enabled is on.
-  // The starting value is the instance-wide project default set in god mode.
-  mcpEnabled: boolean('mcp_enabled').notNull().default(false),
-  // Optional sections of the app, toggled per project in Settings -> Features. All
-  // on by default. Turning one off only hides its UI; the rows it owns stay and
-  // come back with it.
-  initiativesEnabled: boolean('initiatives_enabled').notNull().default(true),
-  dashboardsEnabled: boolean('dashboards_enabled').notNull().default(true),
-  documentsEnabled: boolean('documents_enabled').notNull().default(true),
-  notesEnabled: boolean('notes_enabled').notNull().default(true),
-  cyclesEnabled: boolean('cycles_enabled').notNull().default(true),
-  subtasksEnabled: boolean('subtasks_enabled').notNull().default(true),
-  checklistsEnabled: boolean('checklists_enabled').notNull().default(true),
-  issueStatsEnabled: boolean('issue_stats_enabled').notNull().default(true),
-  // Which kinds of estimate the issues of this project carry, set in Settings ->
-  // Configuration. Both off by default; turning one off hides its UI and keeps the
-  // values, which show again when it is turned back on.
-  pointsEstimateEnabled: boolean('points_estimate_enabled').notNull().default(false),
-  timeEstimateEnabled: boolean('time_estimate_enabled').notNull().default(false),
-  // Whether members log the time they spend on the issues of this project, set in
-  // the same place. Independent of the time estimate: a team can log time without
-  // estimating first. Turning it off hides the entries and keeps them.
-  timeLoggingEnabled: boolean('time_logging_enabled').notNull().default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const project = pgTable(
+  'project',
+  {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id')
+      .notNull()
+      .references(() => team.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    nextSequence: integer('next_sequence').notNull().default(1),
+    // Whether this project is in the team's MCP reach. Managed from the team's MCP
+    // settings, not from the project, and only counts while team.mcp_enabled is on.
+    // The starting value is the instance-wide project default set in god mode.
+    mcpEnabled: boolean('mcp_enabled').notNull().default(false),
+    // Optional sections of the app, toggled per project in Settings -> Features. All
+    // on by default. Turning one off only hides its UI; the rows it owns stay and
+    // come back with it.
+    initiativesEnabled: boolean('initiatives_enabled').notNull().default(true),
+    dashboardsEnabled: boolean('dashboards_enabled').notNull().default(true),
+    documentsEnabled: boolean('documents_enabled').notNull().default(true),
+    notesEnabled: boolean('notes_enabled').notNull().default(true),
+    cyclesEnabled: boolean('cycles_enabled').notNull().default(true),
+    subtasksEnabled: boolean('subtasks_enabled').notNull().default(true),
+    checklistsEnabled: boolean('checklists_enabled').notNull().default(true),
+    issueStatsEnabled: boolean('issue_stats_enabled').notNull().default(true),
+    // Which kinds of estimate the issues of this project carry, set in Settings ->
+    // Configuration. Both off by default; turning one off hides its UI and keeps the
+    // values, which show again when it is turned back on.
+    pointsEstimateEnabled: boolean('points_estimate_enabled').notNull().default(false),
+    timeEstimateEnabled: boolean('time_estimate_enabled').notNull().default(false),
+    // Whether members log the time they spend on the issues of this project, set in
+    // the same place. Independent of the time estimate: a team can log time without
+    // estimating first. Turning it off hides the entries and keeps them.
+    timeLoggingEnabled: boolean('time_logging_enabled').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('project_team_key_uq').on(t.teamId, t.key)],
+);
 
 // Per-project key-value settings, mirroring app_setting but scoped to a project.
 // The value is a jsonb blob owned by whatever feature reads the key, so one table
@@ -279,6 +286,8 @@ export const projectMember = pgTable(
     // it only ever updates or removes its own rows, so a sync never undoes a
     // membership someone set up by hand.
     source: text('source').notNull().default('invite'),
+    isFavorite: boolean('is_favorite').notNull().default(false),
+    isHidden: boolean('is_hidden').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -771,9 +780,9 @@ export const gitProviderConnection = pgTable(
   'git_provider_connection',
   {
     id: serial('id').primaryKey(),
-    projectId: integer('project_id')
+    teamId: integer('team_id')
       .notNull()
-      .references(() => project.id, { onDelete: 'cascade' }),
+      .references(() => team.id, { onDelete: 'cascade' }),
     provider: text('provider').notNull(),
     baseUrl: text('base_url').notNull(),
     accountLogin: text('account_login').notNull(),
@@ -783,21 +792,16 @@ export const gitProviderConnection = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    unique('git_provider_connection_project_provider_url_account_unique').on(
-      t.projectId,
-      t.provider,
-      t.baseUrl,
-      t.accountLogin,
-    ),
-    index('git_provider_connection_project_idx').on(t.projectId),
-  ],
+  (t) => [index('git_provider_connection_team_idx').on(t.teamId)],
 );
 
 export const gitManagedRepository = pgTable(
   'git_managed_repository',
   {
     id: serial('id').primaryKey(),
+    projectId: integer('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
     connectionId: integer('connection_id')
       .notNull()
       .references(() => gitProviderConnection.id, { onDelete: 'cascade' }),
@@ -811,8 +815,12 @@ export const gitManagedRepository = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    unique('git_managed_repository_connection_external_unique').on(t.connectionId, t.externalId),
-    index('git_managed_repository_connection_idx').on(t.connectionId, t.fullName),
+    unique('git_managed_repository_project_connection_external_unique').on(
+      t.projectId,
+      t.connectionId,
+      t.externalId,
+    ),
+    index('git_managed_repository_project_connection_idx').on(t.projectId, t.connectionId),
   ],
 );
 
@@ -2140,6 +2148,93 @@ export const webhookDelivery = pgTable(
   ],
 );
 
+// Background job that imports issues from an external tracker into a project. The
+// worker claims due rows the same way as webhook_delivery, and cursor is the
+// job's own per-phase resumability checkpoint, not the source API's pagination
+// cursor. The credential columns are cleared once the job reaches a terminal
+// status; only 'plane' is supported as a source today.
+export type ImportSource = 'plane';
+
+export const importJob = pgTable(
+  'import_job',
+  {
+    id: serial('id').primaryKey(),
+    projectId: integer('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    createdByUserId: text('created_by_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    source: text('source').notNull(),
+    phase: text('phase').notNull().default('discover'),
+    status: text('status').notNull().default('pending'),
+    config: jsonb('config').notNull().default({}),
+    cursor: jsonb('cursor').notNull().default({}),
+    credentialCiphertext: text('credential_ciphertext'),
+    credentialIv: text('credential_iv'),
+    credentialAuthTag: text('credential_auth_tag'),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('import_job_source_check', sql`${t.source} IN ('plane')`),
+    check(
+      'import_job_phase_check',
+      sql`${t.phase} IN ('discover', 'create', 'link', 'rewrite', 'attachments', 'done')`,
+    ),
+    check(
+      'import_job_status_check',
+      sql`${t.status} IN ('pending', 'running', 'paused', 'completed', 'failed')`,
+    ),
+    index('import_job_project_idx').on(t.projectId),
+    // Backs the worker's claim query: due pending rows ordered by next_attempt_at.
+    index('import_job_due_idx')
+      .on(t.nextAttemptAt)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);
+
+// Source-id-to-local-id mapping for one import job. The unique index on
+// (import_job_id, source_entity_type, source_id) makes the upsert idempotent, so
+// a re-run of a phase finds the existing row instead of creating another. No
+// foreign key on local_id: it spans every table an import can create, not one.
+export const importRecord = pgTable(
+  'import_record',
+  {
+    id: serial('id').primaryKey(),
+    importJobId: integer('import_job_id')
+      .notNull()
+      .references(() => importJob.id, { onDelete: 'cascade' }),
+    sourceEntityType: text('source_entity_type').notNull(),
+    sourceId: text('source_id').notNull(),
+    // The source's own human-readable number for the entity (Plane's work item
+    // sequence_id, as a string) — only set for 'issue' rows, at Create time. Lets
+    // the Rewrite phase resolve a cross-reference like "ROOMS-524" back to this
+    // job's mapping without re-fetching every issue a second time to learn it.
+    sourceDisplayId: text('source_display_id'),
+    localEntityType: text('local_entity_type'),
+    localId: integer('local_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      'import_record_source_entity_type_check',
+      sql`${t.sourceEntityType} IN ('issue', 'comment', 'label', 'state', 'cycle', 'attachment')`,
+    ),
+    check(
+      'import_record_local_entity_type_check',
+      sql`${t.localEntityType} IS NULL OR ${t.localEntityType} IN ('issue', 'comment', 'label', 'state', 'cycle', 'attachment')`,
+    ),
+    uniqueIndex('import_record_job_source_uq').on(t.importJobId, t.sourceEntityType, t.sourceId),
+    index('import_record_job_local_idx').on(t.importJobId, t.localEntityType, t.localId),
+    // Backs the Rewrite phase's cross-reference lookup (job, entity type, display id).
+    index('import_record_job_display_idx').on(t.importJobId, t.sourceEntityType, t.sourceDisplayId),
+  ],
+);
+
 // Per-user inbox notifications. One row per (recipient, event): a user is notified
 // about an issue they are involved in (assigned to them, mentioned, or watching it
 // when it is commented on or moved). The actor's own actions never notify the actor.
@@ -2207,4 +2302,49 @@ export const revision = pgTable(
   },
   // Backs both the project cleanup and the membership join the read does.
   (t) => [index('revision_project_idx').on(t.projectId)],
+);
+
+export const documentCollaboration = pgTable('document_collaboration', {
+  documentId: integer('document_id')
+    .primaryKey()
+    .references(() => projectDocument.id, { onDelete: 'cascade' }),
+  epoch: uuid('epoch').notNull().defaultRandom(),
+  version: integer('version').notNull().default(0),
+  contentJson: jsonb('content_json').$type<Record<string, unknown>>().notNull(),
+});
+
+export const documentStep = pgTable(
+  'document_step',
+  {
+    documentId: integer('document_id')
+      .notNull()
+      .references(() => projectDocument.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull(),
+    clientId: text('client_id').notNull(),
+    step: jsonb('step').$type<Record<string, unknown>>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.documentId, t.version] })],
+);
+
+export const documentComment = pgTable(
+  'document_comment',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    documentId: integer('document_id')
+      .notNull()
+      .references(() => projectDocument.id, { onDelete: 'cascade' }),
+    parentId: uuid('parent_id').references((): AnyPgColumn => documentComment.id, {
+      onDelete: 'cascade',
+    }),
+    authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    quote: text('quote').notNull().default(''),
+    from: integer('selection_from'),
+    to: integer('selection_to'),
+    orphaned: boolean('orphaned').notNull().default(false),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('document_comment_document_idx').on(t.documentId, t.createdAt)],
 );

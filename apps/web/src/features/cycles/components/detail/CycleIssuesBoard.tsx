@@ -25,7 +25,7 @@ export default function CycleIssuesBoard({ cycle }: { cycle: Cycle }) {
   const filterRef = useRef<HTMLDivElement>(null);
   const cycleId = cycle.id;
   const board = useLocalBoardSettings(CYCLE_BOARD_STORE_KEY, cycleId);
-  const initiativeOptions = useInitiativeOptionsQuery(project?.project.key ?? null).data ?? [];
+  const initiativeOptions = useInitiativeOptionsQuery(project?.project.ref ?? null).data ?? [];
   const scopedIssues = useMemo(
     () => project?.issues.filter((issue) => issue.cycle?.id === cycleId) ?? [],
     [project?.issues, cycleId],

@@ -1,4 +1,5 @@
 import { t } from 'elysia';
+import { PROJECT_KEY_PATTERN } from './key';
 import { PROJECT_FEATURES } from '#shared/features';
 import { ColumnResponse } from '#modules/columns/model';
 import { CustomFieldResponse } from '#modules/custom-fields/model';
@@ -13,8 +14,13 @@ import { COPY_INCLUDE_KEYS } from './copy';
 // input tokens each time, so it is capped on the way in and cut again in the prompt.
 export const PROJECT_DESCRIPTION_LIMIT = 2000;
 
+const projectKey = t.String({
+  pattern: PROJECT_KEY_PATTERN,
+  description: 'Upper-case letters and digits, starting with a letter, up to 10 characters.',
+});
+
 const projectBody = t.Object({
-  key: t.String({ minLength: 1 }),
+  key: projectKey,
   name: t.String({ minLength: 1 }),
   description: t.Optional(t.String({ maxLength: PROJECT_DESCRIPTION_LIMIT })),
 });
@@ -48,11 +54,44 @@ export const copyProjectBody = t.Composite([
 ]);
 
 export const updateProjectBody = t.Object({
+  key: t.Optional(projectKey),
   name: t.Optional(t.String({ minLength: 1 })),
   description: t.Optional(t.String({ maxLength: PROJECT_DESCRIPTION_LIMIT })),
 });
 
+export const ProjectPreferencesResponse = t.Object({
+  isFavorite: t.Boolean(),
+  isHidden: t.Boolean(),
+});
+
+export const updateProjectPreferencesBody = t.Object(
+  {
+    isFavorite: t.Optional(t.Boolean()),
+    isHidden: t.Optional(t.Boolean()),
+  },
+  { minProperties: 1 },
+);
+
 export const listProjectsQuery = t.Object({
+  q: t.Optional(
+    t.String({
+      description: 'Case-insensitive literal substring of the project key, name, or description.',
+    }),
+  ),
+  sort: t.Optional(
+    t.UnionEnum(['key', 'name', 'created', 'activity'], {
+      description:
+        'Sort by key (default), name, newest creation, or newest work-item activity/comment. ' +
+        'Activity puts projects without activity last. Ties are ordered by key.',
+    }),
+  ),
+  teamId: t.Optional(
+    t.Numeric({
+      minimum: 1,
+      multipleOf: 1,
+      description: 'Limit results to projects in this team that you belong to.',
+    }),
+  ),
   permissions: t.Optional(
     t.String({ description: "'true' to include the caller's permission matrix per project." }),
   ),
@@ -63,7 +102,11 @@ export const ProjectResponse = t.Object({
   id: t.Number(),
   teamId: t.Number(),
   teamName: t.String(),
+  teamRef: t.String({ description: "The team's slug, or its id while it has none." }),
   key: t.String(),
+  ref: t.String({
+    description: "'<teamRef>.<key>': how routes containing {projectKey} name this project.",
+  }),
   name: t.String(),
   description: t.String(),
   mcpEnabled: t.Boolean(),
@@ -93,6 +136,15 @@ export const ProjectListResponse = t.Array(
     ProjectResponse,
     t.Object({
       role: t.Union([t.Literal('owner'), t.Literal('member')]),
+      lastActivityAt: t.Nullable(
+        t.String({
+          description: 'Newest readable work-item activity or comment timestamp, or null.',
+        }),
+      ),
+      isFavorite: t.Boolean({ description: 'Whether you starred this project.' }),
+      isHidden: t.Boolean({
+        description: 'Whether you hid this project in your navigation. Does not restrict access.',
+      }),
       permissions: t.Optional(PermissionMatrixSchema),
     }),
   ]),

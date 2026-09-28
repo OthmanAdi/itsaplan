@@ -1,13 +1,27 @@
 import {
   db,
   documentAsset,
+  documentCollaboration,
+  documentComment,
   project,
   projectDocument,
   projectDocumentPreference,
   projectDocumentRevision,
   projectMember,
 } from '@repo/db';
-import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import {
+  getTableColumns,
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { HttpError, iso } from '#shared/lib';
 import {
   assertAttachmentStorageCapacity,
@@ -144,10 +158,21 @@ function mapAsset(row: typeof documentAsset.$inferSelect): DocumentAssetRow {
   return { ...row, createdAt: iso(row.createdAt) };
 }
 
+// The URL of a document asset. It is stored in the document body, so it names the
+// team by its id: a slug can change later, the id cannot.
+export function documentAssetPath(
+  project: { teamId: number; key: string },
+  documentId: number,
+  publicId: string,
+): string {
+  const ref = encodeURIComponent(`${project.teamId}.${project.key}`);
+  return `/projects/${ref}/documents/${documentId}/assets/${publicId}/raw`;
+}
+
 export function replaceAssetReferences<T>(
   value: T,
   sourceDocumentId: number,
-  targetProjectKey: string,
+  targetProject: { teamId: number; key: string },
   targetDocumentId: number,
   publicIds: Map<string, string>,
 ): T {
@@ -160,7 +185,7 @@ export function replaceAssetReferences<T>(
       (match, mediaPrefix: string | undefined, publicId: string) => {
         const targetPublicId = publicIds.get(publicId.toLowerCase());
         return targetPublicId
-          ? `${mediaPrefix ?? ''}/projects/${encodeURIComponent(targetProjectKey)}/documents/${targetDocumentId}/assets/${targetPublicId}/raw`
+          ? `${mediaPrefix ?? ''}${documentAssetPath(targetProject, targetDocumentId, targetPublicId)}`
           : match;
       },
     );
@@ -168,20 +193,14 @@ export function replaceAssetReferences<T>(
   }
   if (Array.isArray(value)) {
     return value.map((item) =>
-      replaceAssetReferences(item, sourceDocumentId, targetProjectKey, targetDocumentId, publicIds),
+      replaceAssetReferences(item, sourceDocumentId, targetProject, targetDocumentId, publicIds),
     ) as T;
   }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
         key,
-        replaceAssetReferences(
-          item,
-          sourceDocumentId,
-          targetProjectKey,
-          targetDocumentId,
-          publicIds,
-        ),
+        replaceAssetReferences(item, sourceDocumentId, targetProject, targetDocumentId, publicIds),
       ]),
     ) as T;
   }
@@ -242,8 +261,13 @@ export async function listDocuments(
       or(ilike(projectDocument.title, `%${term}%`), ilike(projectDocument.content, `%${term}%`)),
     );
   }
+  const {
+    content: _content,
+    contentJson: _contentJson,
+    ...columns
+  } = getTableColumns(projectDocument);
   const rows = await db
-    .select()
+    .select(columns)
     .from(projectDocument)
     .where(and(...conditions))
     .orderBy(asc(projectDocument.position), asc(projectDocument.id));
@@ -254,7 +278,7 @@ export async function listDocuments(
     rows.map((row) => row.id),
   );
   return rows.map((row) => ({
-    ...summaryOf(row, favorites.has(row.id)),
+    ...summaryOf({ ...row, content: '', contentJson: null }, favorites.has(row.id)),
     parentId: row.parentId !== null && visibleIds.has(row.parentId) ? row.parentId : null,
   }));
 }
@@ -678,7 +702,12 @@ function assertAllowedAttributes(
   allowed: readonly string[],
   context: string,
 ): void {
-  const allowedKeys = new Set(allowed);
+  const allowedKeys = new Set([...allowed, 'blockId']);
+  if (
+    attrs.blockId != null &&
+    (typeof attrs.blockId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(attrs.blockId))
+  )
+    throw new HttpError(400, 'Invalid document block identifier.');
   const unknown = Object.keys(attrs).find((key) => !allowedKeys.has(key));
   if (unknown) throw new HttpError(400, `${context} contains an unsupported "${unknown}" attr.`);
 }
@@ -999,7 +1028,11 @@ export async function updateDocument(
       .set({
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.content !== undefined ? { content: input.content } : {}),
-        ...(input.contentJson !== undefined ? { contentJson: input.contentJson } : {}),
+        ...(input.contentJson !== undefined
+          ? { contentJson: input.contentJson }
+          : input.content !== undefined
+            ? { contentJson: null }
+            : {}),
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
         ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
         ...(input.fullWidth !== undefined ? { fullWidth: input.fullWidth } : {}),
@@ -1019,6 +1052,15 @@ export async function updateDocument(
       .returning();
     if (!row) {
       throw new HttpError(409, 'This document changed elsewhere. Reload it before continuing.');
+    }
+    if (input.content !== undefined || input.contentJson !== undefined) {
+      await tx
+        .delete(documentCollaboration)
+        .where(eq(documentCollaboration.documentId, documentId));
+      await tx
+        .update(documentComment)
+        .set({ orphaned: true })
+        .where(eq(documentComment.documentId, documentId));
     }
     if (movePlan) {
       // Position normalization is implementation detail, not user-visible page
@@ -1395,7 +1437,7 @@ export async function duplicateDocument(input: {
         await assertAttachmentFileAllowed(asset.sizeBytes, asset.contentType);
       }
       const [projectRow] = await tx
-        .select({ key: project.key })
+        .select({ teamId: project.teamId, key: project.key })
         .from(project)
         .where(eq(project.id, input.projectId));
       const publicIds = new Map<string, string>();
@@ -1420,17 +1462,11 @@ export async function duplicateDocument(input: {
         const [rewritten] = await tx
           .update(projectDocument)
           .set({
-            content: replaceAssetReferences(
-              row.content,
-              source.id,
-              projectRow.key,
-              row.id,
-              publicIds,
-            ),
+            content: replaceAssetReferences(row.content, source.id, projectRow, row.id, publicIds),
             contentJson: replaceAssetReferences(
               row.contentJson,
               source.id,
-              projectRow.key,
+              projectRow,
               row.id,
               publicIds,
             ),
@@ -1599,6 +1635,11 @@ export async function restoreDocumentRevision(
     if (!row) {
       throw new HttpError(409, 'This document changed elsewhere. Reload it before continuing.');
     }
+    await tx.delete(documentCollaboration).where(eq(documentCollaboration.documentId, documentId));
+    await tx
+      .update(documentComment)
+      .set({ orphaned: true })
+      .where(eq(documentComment.documentId, documentId));
     return mapDocumentForUser(tx, row, userId);
   });
 }

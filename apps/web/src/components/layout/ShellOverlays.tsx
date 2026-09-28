@@ -5,7 +5,6 @@ import type { ProjectDetail } from '@/lib/api/endpoints/projects';
 import { issuePath, projectPath } from '@/utils/paths';
 import type { useOverlays } from '@/hooks/useOverlays';
 import NewProjectModal from '@/components/layout/NewProjectModal';
-import NewTeamModal from '@/features/teams/components/NewTeamModal';
 import InitiativeDialog from '@/components/common/overlay/InitiativeDialog';
 import NewIssueModal from '@/features/issue/components/create/NewIssueModal';
 import IssueDetail from '@/features/issue/components/detail/IssueDetail';
@@ -15,18 +14,21 @@ import IssueDetail from '@/features/issue/components/detail/IssueDetail';
 export default function ShellOverlays({
   project,
   projectKey,
+  newProjectTeamId,
   overlays,
 }: {
   project: ProjectDetail | null;
   projectKey: string | null;
+  newProjectTeamId: number | undefined;
   overlays: ReturnType<typeof useOverlays>;
 }) {
   const router = useRouter();
 
   return (
     <>
-      {overlays.showNewProject && (
+      {newProjectTeamId != null && overlays.showNewProject && (
         <NewProjectModal
+          teamId={newProjectTeamId}
           onClose={() => overlays.setShowNewProject(false)}
           onCreated={(key) => {
             overlays.setShowNewProject(false);
@@ -34,8 +36,6 @@ export default function ShellOverlays({
           }}
         />
       )}
-
-      {overlays.showNewTeam && <NewTeamModal onClose={() => overlays.setShowNewTeam(false)} />}
 
       {projectKey && overlays.showNewInitiative && (
         <InitiativeDialog

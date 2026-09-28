@@ -28,6 +28,28 @@ const ThroughputWeek = t.Object({
   closed: t.Number(),
 });
 
+const BurnupDay = t.Object({
+  date: t.String(),
+  scope: t.Number(),
+  started: t.Number(),
+  completed: t.Number(),
+});
+
+export const BurnupDto = t.Object({
+  days: t.Array(BurnupDay),
+  forecast: t.Object({
+    windowDays: t.Number(),
+    velocityPerDay: t.Number(),
+    scopeGrowthPerDay: t.Number(),
+    remaining: t.Number(),
+    projectedScope: t.Number(),
+    projectedDate: t.Nullable(t.String()),
+    optimisticDate: t.Nullable(t.String()),
+    pessimisticDate: t.Nullable(t.String()),
+  }),
+  targetDate: t.Nullable(t.String()),
+});
+
 const ActivityItem = t.Object({
   id: t.Number(),
   issueId: t.Number(),
@@ -117,11 +139,18 @@ export const breakdownQuery = t.Object({
 });
 
 export const pulseQuery = t.Object({
+  scope: t.Optional(t.Union([t.Literal('project'), t.Literal('me')])),
   unit: t.Optional(t.Union([t.Literal('hour'), t.Literal('day'), t.Literal('week')])),
   columns: t.Optional(t.Numeric()),
 });
 
 export const throughputQuery = t.Object({ weeks: t.Optional(t.Numeric()) });
+
+export const burnupQuery = t.Object({
+  days: t.Optional(t.Numeric()),
+  initiativeId: t.Optional(t.Numeric()),
+  forecastWeeks: t.Optional(t.Numeric()),
+});
 
 export const activityQuery = t.Object({
   limit: t.Optional(t.Numeric()),

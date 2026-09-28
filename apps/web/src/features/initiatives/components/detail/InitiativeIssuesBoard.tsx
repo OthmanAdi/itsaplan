@@ -22,7 +22,7 @@ export default function InitiativeIssuesBoard({ initiativeId }: { initiativeId: 
   const { project, customFields, onOpenIssue, onAddIssue, boardStatus } = useShell();
   const filterRef = useRef<HTMLDivElement>(null);
   const board = useLocalBoardSettings(INITIATIVE_BOARD_STORE_KEY, initiativeId);
-  const initiativeOptions = useInitiativeOptionsQuery(project?.project.key ?? null).data ?? [];
+  const initiativeOptions = useInitiativeOptionsQuery(project?.project.ref ?? null).data ?? [];
   const scopedIssues = useMemo(
     () => project?.issues.filter((issue) => issue.initiative?.id === initiativeId) ?? [],
     [project?.issues, initiativeId],
