@@ -261,6 +261,45 @@ describe('column search controls and results', () => {
     assert.equal(document.activeElement, search.entryRefs.current.get('c1'));
   });
 
+  it('uses one inline button to clear the query, then to close the search', async () => {
+    act(() => search.open('c1'));
+    await frame();
+    const input = document.querySelector('input')!;
+    const labels = () =>
+      [...document.querySelectorAll('[data-slot="input-group"] button')].map((button) =>
+        button.getAttribute('aria-label'),
+      );
+    assert.deepEqual(labels(), ['Close search']);
+    act(() => search.changeQuery('Task 12'));
+    assert.deepEqual(labels(), ['Clear search']);
+    act(() => document.querySelector<HTMLButtonElement>('[aria-label="Clear search"]')!.click());
+    assert.equal(search.query, '');
+    assert.equal(search.active?.key, 'c1');
+    assert.equal(document.activeElement, input);
+    assert.deepEqual(labels(), ['Close search']);
+    act(() => document.querySelector<HTMLButtonElement>('[aria-label="Close search"]')!.click());
+    await frame();
+    assert.equal(search.active, null);
+    assert.equal(document.activeElement, search.entryRefs.current.get('c1'));
+  });
+
+  it('keeps only a clear button inside the full-screen search field', async () => {
+    modal = true;
+    act(() => search.open('c1'));
+    await frame();
+    const field = document.querySelector('[data-slot="input-group"]')!;
+    assert.equal(field.querySelectorAll('button').length, 0);
+    act(() => search.changeQuery('Task 12'));
+    const clear = field.querySelector('button')!;
+    assert.equal(clear.getAttribute('aria-label'), 'Clear search');
+    act(() => clear.click());
+    assert.equal(search.query, '');
+    assert.equal(search.active?.key, 'c1');
+    assert.equal(document.activeElement, document.querySelector('input'));
+    assert.equal(field.querySelectorAll('button').length, 0);
+    assert.match(document.querySelector('[role="dialog"]')!.textContent ?? '', /Back to board/);
+  });
+
   it('shows a loading state without reporting zero tasks, and keeps the input usable', () => {
     loading = true;
     act(() => root.render(<Probe />));

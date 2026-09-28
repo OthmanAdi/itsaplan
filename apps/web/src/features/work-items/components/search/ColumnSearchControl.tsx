@@ -1,8 +1,12 @@
 import { useId } from 'react';
 import { Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import { useColumnSearchContext } from '../../context/columnSearchContext';
 import { ColumnSearchSummary } from './ColumnSearchSummary';
 
@@ -16,82 +20,70 @@ export function ColumnSearchControl() {
     search.draft.scrollTop = 0;
     search.inputRef.current?.focus();
   };
+  const closes = !search.query && search.active?.mode === 'inline';
+  const dismiss = () => (closes ? search.close() : clear());
   return (
     <div className="shrink-0 space-y-2 px-1 pb-3">
-      <label htmlFor={id} className="block text-sm font-medium">
+      <label htmlFor={id} className="sr-only">
         {t('label')}
       </label>
-      <div className="flex items-center gap-1">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute start-3 top-3.5 size-4 text-muted-foreground"
-          />
-          <Input
-            ref={search.inputRef}
-            id={id}
-            type="search"
-            value={search.query}
-            autoComplete="off"
-            spellCheck={false}
-            enterKeyHint="search"
-            aria-describedby={`${id}-context`}
-            placeholder={t('placeholder')}
-            dir="auto"
-            className="h-11 min-w-0 border-0 bg-background ps-9 pe-2 text-base shadow-none md:text-base [&::-webkit-search-cancel-button]:hidden"
-            onChange={(event) => search.changeQuery(event.target.value, !composing.current)}
-            onCompositionStart={() => {
-              composing.current = true;
-            }}
-            onCompositionEnd={(event) => {
-              composing.current = false;
-              search.changeQuery(event.currentTarget.value);
-            }}
-            onKeyDown={(event) => {
-              if (composing.current || event.nativeEvent.isComposing) {
-                event.stopPropagation();
-                return;
-              }
-              if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                search.resultsRef.current?.focusIndex(0);
-              }
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                if (search.active?.mode === 'modal') event.currentTarget.blur();
-              }
-              if (event.key === 'Escape' && search.active?.mode === 'inline') {
-                event.preventDefault();
-                event.stopPropagation();
-                if (search.query) clear();
-                else search.close();
-              }
-            }}
-          />
-        </div>
-        {search.query && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-11 shrink-0"
-            aria-label={t('clear')}
-            onClick={clear}
-          >
-            <X />
-          </Button>
+      <InputGroup className="h-8 bg-background transition-[color,box-shadow,border-color] duration-150 motion-reduce:transition-none pointer-coarse:h-10">
+        <InputGroupAddon>
+          <Search aria-hidden />
+        </InputGroupAddon>
+        <InputGroupInput
+          ref={search.inputRef}
+          id={id}
+          type="search"
+          value={search.query}
+          autoComplete="off"
+          spellCheck={false}
+          enterKeyHint="search"
+          aria-describedby={`${id}-context`}
+          placeholder={t('placeholder')}
+          dir="auto"
+          className="h-full text-sm md:text-sm pointer-coarse:text-base [&::-webkit-search-cancel-button]:hidden"
+          onChange={(event) => search.changeQuery(event.target.value, !composing.current)}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={(event) => {
+            composing.current = false;
+            search.changeQuery(event.currentTarget.value);
+          }}
+          onKeyDown={(event) => {
+            if (composing.current || event.nativeEvent.isComposing) {
+              event.stopPropagation();
+              return;
+            }
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              search.resultsRef.current?.focusIndex(0);
+            }
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              if (search.active?.mode === 'modal') event.currentTarget.blur();
+            }
+            if (event.key === 'Escape' && search.active?.mode === 'inline') {
+              event.preventDefault();
+              event.stopPropagation();
+              dismiss();
+            }
+          }}
+        />
+        {(search.query || closes) && (
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              size="icon-xs"
+              className="pointer-coarse:size-8"
+              aria-label={closes ? t('close') : t('clear')}
+              onClick={dismiss}
+            >
+              <X />
+            </InputGroupButton>
+          </InputGroupAddon>
         )}
-        {search.active?.mode === 'inline' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-11 shrink-0"
-            aria-label={t('close')}
-            onClick={() => search.close()}
-          >
-            <X />
-          </Button>
-        )}
-      </div>
+      </InputGroup>
       <ColumnSearchSummary id={`${id}-context`} />
     </div>
   );
